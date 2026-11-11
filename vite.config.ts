@@ -1,9 +1,24 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
+// The Kokoro voice is optional (about 650 MB of dependencies), so it is not in
+// package.json. Without it, `kokoro-js` resolves to a stub that fails cleanly
+// and the app uses the system or ElevenLabs voice. `npm install kokoro-js`
+// turns the real one back on.
+const hasKokoro = existsSync('node_modules/kokoro-js/package.json')
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  resolve: hasKokoro
+    ? {}
+    : {
+        alias: {
+          'kokoro-js': fileURLToPath(new URL('./src/lib/kokoro-stub.ts', import.meta.url)),
+        },
+      },
   server: {
     // Honour PORT so a second instance can run alongside the first. The bridge
     // only accepts sockets from localhost:5173-5199, so stay inside that range
