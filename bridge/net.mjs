@@ -136,6 +136,19 @@ export function guardedLookup(hostname, options, callback) {
 }
 
 /** An error carrying the status we want the browser to see. */
+/**
+ * The words shown in a blade when a site refuses the fetch. A bare status code
+ * means nothing to the person looking at it; 401 and 403 almost always mean a
+ * paywall or a login, so say that.
+ */
+export function upstreamMessage(status) {
+  if (status === 401 || status === 403) {
+    return `This site needs you to be signed in (it answered ${status}), so it can't be opened here. Paywalled news like the WSJ only opens in your own browser.`
+  }
+  if (status === 429) return 'This site is limiting requests (429). Try again in a minute.'
+  return `The site refused the request (${status}).`
+}
+
 export function proxyError(status, message) {
   const err = new Error(message)
   err.status = status
@@ -266,7 +279,7 @@ export async function fetchText(url, { maxBytes, timeoutMs, accept }) {
 
   if (status !== 200) {
     res.resume()
-    throw proxyError(status === 404 ? 404 : 502, `upstream said ${status}`)
+    throw proxyError(status === 404 ? 404 : 502, upstreamMessage(status))
   }
 
   const chunks = []

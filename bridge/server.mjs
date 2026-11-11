@@ -27,7 +27,7 @@ import { mkdirSync, readFileSync, realpathSync } from 'node:fs'
 import { readFile, realpath, stat } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve as resolvePath } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { openRemote, proxyError, vetTarget, PROXY_UA } from './net.mjs'
+import { openRemote, proxyError, upstreamMessage, vetTarget, PROXY_UA } from './net.mjs'
 import { probeUrl, renderPage } from './page.mjs'
 import {
   builtinTools,
@@ -488,6 +488,17 @@ const PROMPT_TOOLS = `Using tools:
 - Never append a sources list, citations, or markdown links. Every word you write
   is read out loud, and a URL becomes "aitch tee tee pee colon slash slash".
   Put the source in the panel as a short tag like "REUTERS" instead.
+- Paywalled news (Wall Street Journal, New York Times, Financial Times,
+  Bloomberg, Barron's, The Economist) refuses anything but a signed-in browser,
+  so an article blade for it fails with a 401. Never open one. For headlines,
+  WebFetch the publication's free RSS feed — for the Journal:
+  https://feeds.a.dj.com/rss/RSSWorldNews.xml, RSSMarketsMain.xml and
+  WSJcomUSBusiness.xml at the same address — or use WebSearch, then show the
+  headlines with a one-line summary each on a markup blade, tagged with the
+  section. For a full article, say it needs their own subscription login and
+  read it through the chrome_* tools if those are available.
+- If \`probe_url\` reports a 401 or 403, the page is behind a login. Do not open
+  it as a blade; find the information another way or say it needs their login.
 - If a tool fails or isn't connected, one plain sentence saying so.
 - If you don't know, say you don't know.`
 
@@ -705,7 +716,7 @@ async function proxyRemote(req, res, cors, { kinds, maxBytes, timeoutMs, ranged 
 
   if (status !== 200 && status !== 206) {
     upstream.resume()
-    throw proxyError(status === 404 ? 404 : 502, `upstream said ${status}`)
+    throw proxyError(status === 404 ? 404 : 502, upstreamMessage(status))
   }
 
   const type = String(upstream.headers['content-type'] ?? '')
