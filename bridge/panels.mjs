@@ -171,7 +171,7 @@ const schema = {
     .enum(['default', 'amber', 'violet', 'green', 'red'])
     .default('default')
     .describe(
-      'Colour identity. default = the interface cyan. amber = caution or ' +
+      'Colour identity. default = the interface mint. amber = caution or ' +
         'pending. violet = generated or synthetic content. green = confirmed ' +
         'or healthy. red = failure or alert. Use it meaningfully, not decoratively.',
     ),

@@ -135,8 +135,8 @@ const themeSchema = {
 
 const THEME_DESCRIPTION = `Retint the whole interface.
 
-The HUD is drawn in one colour identity that normally follows your state: cyan
-while listening, amber while thinking, violet while a tool runs, green while you
+The HUD is drawn in one colour identity that normally follows your state: mint
+while listening, pale lime while thinking, teal-blue while a tool runs, bright green while you
 speak. An accent overrides that everywhere, at once.
 
 Use it when the colour MEANS something. Red because a check came back bad.

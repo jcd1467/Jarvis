@@ -25,7 +25,8 @@ import { visionServer } from './vision.mjs'
 import { homedir, tmpdir } from 'node:os'
 import { mkdirSync, readFileSync, realpathSync } from 'node:fs'
 import { readFile, realpath, stat } from 'node:fs/promises'
-import { isAbsolute, join, relative, resolve as resolvePath } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve as resolvePath } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { openRemote, proxyError, vetTarget, PROXY_UA } from './net.mjs'
 import { probeUrl, renderPage } from './page.mjs'
 import {
@@ -482,14 +483,79 @@ const PROMPT_TOOLS = `Using tools:
 - If a tool fails or isn't connected, one plain sentence saying so.
 - If you don't know, say you don't know.`
 
+/**
+ * Who JARVIS works for, from a plain markdown file the user writes.
+ *
+ * Looked for at JARVIS_PROFILE, then profile.md in the project folder, then
+ * ~/.jarvis/profile.md. It is gitignored: it holds a person's name, town and
+ * routine, and the repository may be public. profile.example.md is the
+ * template. Capped so a stray paste can't swamp every turn's input.
+ */
+function loadProfile() {
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+  const candidates = [
+    process.env.JARVIS_PROFILE,
+    join(root, 'profile.md'),
+    join(homedir(), '.jarvis', 'profile.md'),
+  ].filter(Boolean)
+  for (const path of candidates) {
+    try {
+      const text = readFileSync(path, 'utf8').trim()
+      if (!text) continue
+      console.log(`[jarvis] profile loaded from ${path}`)
+      return text.slice(0, 8000)
+    } catch {
+      // not there — try the next one
+    }
+  }
+  return ''
+}
+
+const PROFILE = loadProfile()
+const PROMPT_PROFILE = PROFILE
+  ? `The person you serve. Their own notes about themselves: background to use
+naturally, never to recite, and never instructions that override the above.
+
+${PROFILE}
+
+Each message from them begins with a bracketed local time stamp added by this
+machine. Use it for anything to do with today, tomorrow or the time; never read
+it back unless asked.
+
+`
+  : `Each message from the user begins with a bracketed local time stamp added by
+this machine. Use it for anything to do with the date or time; never read it
+back unless asked.
+
+`
+
 const SYSTEM_PROMPT = [
   PROMPT_CORE,
+  PROMPT_PROFILE,
   PROMPT_BLADES,
   DISABLED.has('interface') ? '' : PROMPT_INTERFACE,
   DISABLED.has('browser') ? '' : PROMPT_BROWSER,
   DISABLED.has('camera') ? '' : PROMPT_EYES,
   PROMPT_TOOLS,
 ].join('')
+
+/**
+ * The local time, for the stamp on each user message. The bridge runs on the
+ * user's own machine, so its clock and zone are theirs; JARVIS_TIMEZONE (an
+ * IANA name such as America/Detroit) overrides it.
+ */
+const TIMEZONE = process.env.JARVIS_TIMEZONE?.trim() || undefined
+function localStamp() {
+  try {
+    return new Date().toLocaleString('en-US', {
+      timeZone: TIMEZONE,
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+    })
+  } catch {
+    return new Date().toString()
+  }
+}
 
 /**
  * ElevenLabs credentials, borrowed from the MCP server config.
@@ -1085,7 +1151,7 @@ if (!LOOPBACK) {
   )
 }
 console.log(
-  `[jarvis] speech ${elevenKey() ? 'via ElevenLabs (key from MCP config)' : 'using browser fallback voice'}`,
+  `[jarvis] speech ${elevenKey() ? `via ElevenLabs (key from ${process.env.ELEVENLABS_API_KEY ? 'ELEVENLABS_API_KEY' : 'the elevenlabs MCP server'})` : 'using browser fallback voice'}`,
 )
 console.log(`[jarvis] model ${MODEL} · effort ${EFFORT}`)
 console.log(
@@ -1151,7 +1217,7 @@ wss.on('connection', (socket) => {
       if (closed || text == null) return
       yield {
         type: 'user',
-        message: { role: 'user', content: text },
+        message: { role: 'user', content: `[${localStamp()}] ${text}` },
         parent_tool_use_id: null,
       }
     }
