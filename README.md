@@ -132,9 +132,9 @@ WebSocket (plus a few HTTP endpoints) on `ws://localhost:8787`.
 rest. The bridge can. And because it is the Agent SDK, it authenticates off your
 existing Claude Code login: no API key, billed to that same Claude account.
 
-**The model.** `claude-opus-5` at effort `medium` by default. Override with the
+**The model.** `claude-opus-5-5` at effort `medium` by default. Override with the
 `JARVIS_MODEL` and `JARVIS_EFFORT` environment variables. On startup the bridge
-prints its choice, e.g. `[jarvis] model claude-opus-5 · effort medium`.
+prints its choice, e.g. `[jarvis] model claude-opus-5-5 · effort medium`.
 
 ### The voice pipeline
 
