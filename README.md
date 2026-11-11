@@ -91,6 +91,21 @@ Click **INITIALISE**, allow the microphone when asked, and say **"Hey Jarvis"**.
 
 ---
 
+### Windows: one-click start
+
+From the Jarvis folder, run this once to put **Start JARVIS** and **Stop
+JARVIS** icons on your desktop:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\windows\install-shortcut.ps1
+```
+
+**Start JARVIS** pulls the latest version, installs anything missing, opens the
+screen and the brain in two minimised windows, and opens the page in Chrome.
+**Stop JARVIS** closes both.
+
+---
+
 ## How it works
 
 JARVIS is two processes. The browser is the face and the voice; the bridge is
