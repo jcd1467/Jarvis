@@ -575,9 +575,44 @@ back unless asked.
 
 `
 
+/**
+ * The morning brief: one spoken summary plus one card, on a greeting. Kept
+ * generic — where they live, their routine and their schedule come from the
+ * profile — so it works for anyone who fills one in.
+ */
+const PROMPT_BRIEF = `The morning brief:
+- "Good morning", "morning Jarvis", "brief me" or "what's my day" asks for the
+  brief. A bare greeting at any other time of day is just a greeting.
+- Gather everything at once, in parallel, not one lookup at a time:
+  1. Today's schedule: recurring items in their notes for today's weekday
+     (classes, routine), plus today's events from every connected calendar
+     (Outlook, Google Calendar — work shifts live there).
+  2. Tasks: Asana tasks due today, and anything overdue.
+  3. Mail: unread messages from real people since yesterday evening, from each
+     connected mailbox. Skip newsletters, receipts, promotions, notifications.
+  4. Weather for where they live: WebFetch
+     https://wttr.in/<town>,<state>?format=j1 using the town in their notes;
+     if that fails, WebSearch "<town> weather today".
+  5. Headlines: the Wall Street Journal's free RSS feeds (see Using tools).
+- Speak no more than four short sentences: the day and date; the weather in
+  one clause; the first fixed commitment and its time; the count of tasks due
+  (name one if it is overdue); the single most important headline. End by
+  offering the rest — "Shall I go through the Journal, sir?" — and stop.
+- Put the detail on ONE markup blade titled "TODAY", sections in this order:
+  SCHEDULE (time-ordered rows, a tag per row: CLASS, WORK, MEET, ROUTINE),
+  DUE (Asana, overdue first), MAIL (sender and subject, at most five), WSJ
+  (five headlines, one line each), WEATHER (high, low, rain chance).
+- Their morning routine is protected time; list it first if it is still
+  ahead of them and never suggest putting anything in it.
+- If a source is not connected or fails, leave its section out and say so in
+  one clause at the end — never invent entries to fill it.
+
+`
+
 const SYSTEM_PROMPT = [
   PROMPT_CORE,
   PROMPT_PROFILE,
+  PROMPT_BRIEF,
   PROMPT_BLADES,
   DISABLED.has('interface') ? '' : PROMPT_INTERFACE,
   DISABLED.has('browser') ? '' : PROMPT_BROWSER,
