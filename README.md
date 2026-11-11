@@ -35,6 +35,15 @@ can have — Node.js and Chrome. That's the whole list.
   gives a better voice and sharper transcription; the free tier is plenty for a
   demo. Without it, everything runs on the browser's own speech.
 
+  To add it, create a file called `.env.local` in the project folder with one line:
+
+  ```bash
+  ELEVENLABS_API_KEY=sk_your_key_here
+  ```
+
+  then `chmod 600 .env.local`. The bridge reads it at startup; it never reaches
+  the browser, and the file is gitignored. A key exported in your shell wins.
+
 Run `npm run setup` after cloning and it checks all of this for you, in plain
 language.
 

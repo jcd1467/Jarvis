@@ -15,6 +15,7 @@
  *   node bridge/server.mjs
  */
 
+import './envfile.mjs' // first: ELEVENLABS_API_KEY / JARVIS_* from .env.local
 import { WebSocketServer } from 'ws'
 import { query } from '@anthropic-ai/claude-agent-sdk'
 import { displayServer } from './panels.mjs'

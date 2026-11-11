@@ -6,6 +6,7 @@
 // JARVIS. Every check degrades to a single friendly line if something is not
 // there, and the script always exits 0 — it is advice, not a gate.
 
+import '../bridge/envfile.mjs';
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -78,7 +79,7 @@ try {
 // --- ElevenLabs key (env or the elevenlabs MCP entry) --------------------
 function findElevenLabsKey() {
   if (process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_API_KEY.trim()) {
-    return 'environment (ELEVENLABS_API_KEY)';
+    return 'ELEVENLABS_API_KEY (shell or .env.local)';
   }
   try {
     const raw = readFileSync(claudeJsonPath, 'utf8');
