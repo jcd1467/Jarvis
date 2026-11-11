@@ -520,8 +520,13 @@ const PROMPT_TOOLS = `Using tools:
   read it through the chrome_* tools if those are available.
 - If \`probe_url\` reports a 401 or 403, the page is behind a login. Do not open
   it as a blade; find the information another way or say it needs their login.
-- Opening a particular email: search the mailbox for it (sender, subject,
-  date — whatever they gave you), open the full message, and show it on a
+- Opening a particular email never needs the browser — the mail tools return
+  the whole message, and \`display\` draws it. Outlook: \`outlook_email_search\`
+  finds it, then \`read_resource\` on the mail:/// URI it returned gives the full
+  body. Gmail: \`search_threads\`, then \`get_message\` or \`get_thread\`. Never
+  open an email as an article blade or a web link, and never say Chrome is
+  needed for it. Search for it (sender such as wsj.com, subject, date —
+  whatever they gave you), open the full message, and show it on a
   markup blade: sender, subject and time as the header, then the body as
   clean text with links and tracking removed. Speak two sentences on what it
   says. For a newsletter, list its stories as rows instead of the raw body
