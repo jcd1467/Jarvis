@@ -102,6 +102,19 @@ const READ_VERB =
   /^(get|list|read|search|find|query|fetch|check|describe|inspect|show|view|explain|screenshot)/i
 
 /**
+ * A read verb after a product prefix: `outlook_calendar_search`,
+ * `teams_list_chats`, `chat_message_search`. Connector tools often lead with
+ * the product, not the verb, so READ_VERB alone withheld every one of them —
+ * JARVIS could not look at a calendar. Matched as a whole name segment only,
+ * and only when no MID_NAME_WRITE segment is present, since the main veto
+ * misses verbs like forward, reply and move that a mid-name read could hide.
+ */
+const READ_SEGMENT =
+  /(^|[_-])(get|list|read|search|find|query|fetch|check|describe|inspect|show|view)([_-]|$)/i
+const MID_NAME_WRITE =
+  /(^|[_-])(forward|reply|respond|trash|untrash|move|copy|rename|modify|archive|upload|invite|share|set|mark|add|assign|complete|accept|decline|cancel|batch|filter|label|vacation)([_-]|$)/i
+
+/**
  * Unanchored on purpose — `make_outbound_call` and `Bulk-Edit-Events` both
  * hide their verb in the middle. `download` is here because it writes a file
  * even though it sounds like a read.
@@ -159,7 +172,9 @@ export function decideTool(name, allowWrites = false) {
     }
     // The session tools this bridge is developed inside count as read-only too.
     if (READ_ONLY_MCP.has(server) || server.startsWith('ccd_session')) return true
-    return READ_VERB.test(tool) ? true : allowWrites
+    if (READ_VERB.test(tool)) return true
+    if (READ_SEGMENT.test(tool) && !MID_NAME_WRITE.test(tool)) return true
+    return allowWrites
   }
   return allowWrites
 }

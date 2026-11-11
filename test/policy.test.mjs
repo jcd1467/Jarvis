@@ -20,6 +20,20 @@ test('decideTool keeps its existing verdicts', () => {
   assert.equal(decideTool('mcp__higgsfield__generate_image'), true)
   assert.equal(decideTool('mcp__elevenlabs__make_outbound_call'), false)
   assert.equal(decideTool('SomeFutureBuiltin'), false)
+  // Connector tools that lead with the product name, not the verb.
+  assert.equal(decideTool('mcp__claude_ai_Microsoft_365__outlook_calendar_search'), true)
+  assert.equal(decideTool('mcp__claude_ai_Microsoft_365__outlook_email_search'), true)
+  assert.equal(decideTool('mcp__claude_ai_Microsoft_365__teams_list_chats'), true)
+  assert.equal(decideTool('mcp__claude_ai_Microsoft_365__chat_message_search'), true)
+  // ...and the ones beside them that change things stay behind writes.
+  assert.equal(decideTool('mcp__claude_ai_Microsoft_365__outlook_send_mail'), false)
+  assert.equal(decideTool('mcp__claude_ai_Microsoft_365__outlook_forward_mail'), false)
+  assert.equal(decideTool('mcp__claude_ai_Microsoft_365__outlook_respond_to_event'), false)
+  assert.equal(decideTool('mcp__claude_ai_Microsoft_365__outlook_trash_thread'), false)
+  assert.equal(decideTool('mcp__claude_ai_Microsoft_365__outlook_set_vacation'), false)
+  assert.equal(decideTool('mcp__claude_ai_Microsoft_365__outlook_batch_modify_labels'), false)
+  assert.equal(decideTool('mcp__claude_ai_Microsoft_365__sharepoint_move_item'), false)
+  assert.equal(decideTool('mcp__claude_ai_Microsoft_365__teams_send_chat_message'), false)
 })
 
 test('read-only mode refuses a shell command the CLI would auto-approve', () => {
