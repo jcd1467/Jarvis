@@ -204,7 +204,7 @@ const MODEL = process.env.JARVIS_MODEL ?? 'claude-opus-5'
  * matters more than pace; drop back to 'low' when filming and every second of
  * dead air shows.
  */
-const EFFORT = process.env.JARVIS_EFFORT ?? 'high'
+const EFFORT = process.env.JARVIS_EFFORT ?? 'medium'
 
 /**
  * Every MCP server Claude Code has configured, read out of its own config.
@@ -275,6 +275,21 @@ const MCP_SERVERS = allowedServers(configuredServers(), process.env.JARVIS_MCP_S
  * JARVIS_ACCOUNT_CONNECTORS=1 to let the account's connectors in as well.
  */
 const ACCOUNT_CONNECTORS = process.env.JARVIS_ACCOUNT_CONNECTORS === '1'
+
+/**
+ * Account connectors to leave out, comma separated, by the name claude.ai
+ * shows (spaces become underscores): e.g. JARVIS_SKIP_CONNECTORS=Indeed,Gmail.
+ * Every connector's tools ride along on every turn and widen what the model
+ * weighs before answering, so dropping the ones a voice assistant never needs
+ * makes each turn quicker. Default: none.
+ */
+const SKIP_CONNECTORS = (process.env.JARVIS_SKIP_CONNECTORS ?? '')
+  .split(',')
+  .map((s) => s.trim().replace(/\s+/g, '_'))
+  .filter(Boolean)
+if (ACCOUNT_CONNECTORS && SKIP_CONNECTORS.length) {
+  console.log(`[jarvis] connectors left out: ${SKIP_CONNECTORS.join(', ')}`)
+}
 
 /**
  * Connected services JARVIS may change, not just read, while everything else
@@ -1405,6 +1420,7 @@ wss.on('connection', (socket) => {
    * beat late. Nothing is ever announced for work that didn't happen.
    */
   const seenTools = new Set()
+  let namedServers = false
   const heldTools = new Map()
 
   /**
@@ -1540,6 +1556,11 @@ wss.on('connection', (socket) => {
       // without this line nothing in the project has a say at all.
       model: MODEL,
       effort: EFFORT,
+      // A server-level rule (mcp__<server>) removes every tool on it from the
+      // model's context, which is the point: not merely denied, absent.
+      ...(SKIP_CONNECTORS.length
+        ? { disallowedTools: SKIP_CONNECTORS.map((c) => `mcp__claude_ai_${c}`) }
+        : {}),
       maxTurns: 24,
       // Nothing resumes a JARVIS session — every socket starts a new one — so
       // the transcript the SDK writes by default is only ever a record: every
@@ -1697,7 +1718,15 @@ wss.on('connection', (socket) => {
                 .filter((s) => s.status !== 'needs-auth' && s.status !== 'failed')
                 .map((s) => s.name)
               send({ type: 'ready', servers: usable })
-              console.log(`[jarvis] ${usable.length} MCP servers available`)
+              // Named once per connection; the init arrives every turn, and
+              // a bare count each time told nobody which servers they were.
+              if (!namedServers) {
+                namedServers = true
+                console.log(
+                  `[jarvis] ${usable.length} MCP servers available: ` +
+                    usable.map((n) => n.replace(/^claude_ai_/, '')).join(', '),
+                )
+              }
             }
             break
         }
