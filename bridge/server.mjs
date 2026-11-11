@@ -1420,7 +1420,7 @@ wss.on('connection', (socket) => {
    * beat late. Nothing is ever announced for work that didn't happen.
    */
   const seenTools = new Set()
-  let namedServers = false
+  let namedServers = ''
   const heldTools = new Map()
 
   /**
@@ -1718,10 +1718,13 @@ wss.on('connection', (socket) => {
                 .filter((s) => s.status !== 'needs-auth' && s.status !== 'failed')
                 .map((s) => s.name)
               send({ type: 'ready', servers: usable })
-              // Named once per connection; the init arrives every turn, and
-              // a bare count each time told nobody which servers they were.
-              if (!namedServers) {
-                namedServers = true
+              // Named whenever the set changes. The init arrives every turn,
+              // and account connectors join a turn or two in, so printing
+              // only the first list showed four local servers and none of
+              // the user's own.
+              const key = usable.join(',')
+              if (key !== namedServers) {
+                namedServers = key
                 console.log(
                   `[jarvis] ${usable.length} MCP servers available: ` +
                     usable.map((n) => n.replace(/^claude_ai_/, '')).join(', '),
