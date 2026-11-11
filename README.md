@@ -255,7 +255,7 @@ Everything is optional in bridge mode. Frontend settings live in `.env.local`
 | `JARVIS_BRIDGE_PORT` | `8787` | Port for the WebSocket + HTTP endpoints |
 | `JARVIS_BRIDGE_HOST` | `127.0.0.1` | Interface to listen on. Any other address puts the agent on your network |
 | `JARVIS_ALLOWED_HOSTS` | none | Extra hostnames the bridge answers to; a request for any other name gets a 403 |
-| `JARVIS_MODEL` | `claude-opus-5` | Model to run |
+| `JARVIS_MODEL` | `claude-opus-5-5` | Model to run |
 | `JARVIS_EFFORT` | `medium` | Reasoning effort |
 | `JARVIS_ALLOW_WRITES` | off | `1` allows effectful tools (see below) |
 | `JARVIS_MCP_SERVERS` | all configured | Comma-separated `~/.claude.json` servers to pass on; empty passes none |
