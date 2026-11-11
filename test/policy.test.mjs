@@ -20,6 +20,13 @@ test('decideTool keeps its existing verdicts', () => {
   assert.equal(decideTool('mcp__higgsfield__generate_image'), true)
   assert.equal(decideTool('mcp__elevenlabs__make_outbound_call'), false)
   assert.equal(decideTool('SomeFutureBuiltin'), false)
+  // JARVIS_WRITE_SERVERS opens one service for changes and nothing else.
+  assert.equal(decideTool('mcp__claude_ai_Asana__create_tasks', false, ['asana']), true)
+  assert.equal(decideTool('mcp__claude_ai_Asana__delete_task', false, ['asana']), true)
+  assert.equal(decideTool('mcp__claude_ai_Asana__delete_task'), false)
+  assert.equal(decideTool('mcp__claude_ai_Microsoft_365__outlook_send_mail', false, ['asana']), false)
+  assert.equal(decideTool('Bash', false, ['asana']), false)
+  assert.equal(decideTool('Write', false, ['asana']), false)
   // Connector tools that lead with the product name, not the verb.
   assert.equal(decideTool('mcp__claude_ai_Microsoft_365__outlook_calendar_search'), true)
   assert.equal(decideTool('mcp__claude_ai_Microsoft_365__outlook_email_search'), true)

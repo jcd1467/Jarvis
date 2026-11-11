@@ -139,7 +139,19 @@ const VETO_EXEMPT = new Set([
   'openrouter__send-feedback',
 ])
 
-export function decideTool(name, allowWrites = false) {
+/**
+ * Whether an MCP server is one the user has opened for changes on its own,
+ * without turning on writes everywhere (JARVIS_WRITE_SERVERS). Matched as a
+ * case-insensitive substring so `asana` covers `claude_ai_Asana`. Never
+ * applies to JARVIS's own servers or the built-ins.
+ */
+export function serverWritable(server, writeServers = []) {
+  if (!server || server.startsWith('jarvis')) return false
+  const s = server.toLowerCase()
+  return writeServers.some((w) => w && s.includes(w.toLowerCase()))
+}
+
+export function decideTool(name, allowWrites = false, writeServers = []) {
   if (READ_ONLY_BUILTINS.has(name)) return true
   if (WRITE_BUILTINS.has(name)) return allowWrites
 
@@ -165,6 +177,9 @@ export function decideTool(name, allowWrites = false) {
     // and the real gate is the browser's own camera permission plus an
     // indicator the user can see for as long as it is live.
     if (server === 'jarvis_eyes') return true
+
+    // A server the user opened for changes gets its whole surface.
+    if (serverWritable(server, writeServers)) return true
 
     const tool = mcpToolOf(name)
     if (EFFECTFUL_VERB.test(tool) && !VETO_EXEMPT.has(`${server}__${tool}`)) {
@@ -306,8 +321,8 @@ export function pathProblem(target, { cwd, roots }) {
  * spoken, so it is a plain sentence with no paths or commands to read out
  * beyond the one the model already chose.
  */
-export function checkToolUse(name, input, { allowWrites = false, cwd, roots }) {
-  if (!decideTool(name, allowWrites)) {
+export function checkToolUse(name, input, { allowWrites = false, writeServers = [], cwd, roots }) {
+  if (!decideTool(name, allowWrites, writeServers)) {
     return {
       allow: false,
       reason:

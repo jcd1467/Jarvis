@@ -269,10 +269,24 @@ const MCP_SERVERS = allowedServers(configuredServers(), process.env.JARVIS_MCP_S
 const ACCOUNT_CONNECTORS = process.env.JARVIS_ACCOUNT_CONNECTORS === '1'
 
 /**
+ * Connected services JARVIS may change, not just read, while everything else
+ * stays read-only — e.g. JARVIS_WRITE_SERVERS=asana to let him add and delete
+ * tasks without also letting him send mail or run commands. Comma separated,
+ * matched against the server name. Default: none.
+ */
+const WRITE_SERVERS = (process.env.JARVIS_WRITE_SERVERS ?? '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
+if (WRITE_SERVERS.length && !ALLOW_WRITES) {
+  console.log(`[jarvis] changes allowed only in: ${WRITE_SERVERS.join(', ')}`)
+}
+
+/**
  * The tool policy lives in policy.mjs so it can be tested on its own. Bound to
  * this process's write setting once, so everything below reads as before.
  */
-const decideTool = (name) => decidePolicy(name, ALLOW_WRITES)
+const decideTool = (name) => decidePolicy(name, ALLOW_WRITES, WRITE_SERVERS)
 
 /**
  * The agent's working directory, and the only folder its file tools may use
@@ -305,6 +319,7 @@ const TOOL_ROOTS = fileRoots({
 const enforcePolicy = async (input) => {
   const verdict = checkToolUse(input.tool_name, input.tool_input, {
     allowWrites: ALLOW_WRITES,
+    writeServers: WRITE_SERVERS,
     cwd: WORKSPACE,
     roots: TOOL_ROOTS,
   })
@@ -480,7 +495,13 @@ const PROMPT_TOOLS = `Using tools:
 - Their mail, calendar and tasks are connected services (tools named for
   Microsoft 365 / Outlook, Gmail, Google Calendar, Asana). Reach for those
   directly for anything about email, schedule or to-dos. You can read them;
-  you cannot send, reply, delete or change anything in them.
+  you cannot change anything in them unless a tool for it is offered to you
+  and allowed — never send mail or messages.
+- Adding a task when asked needs no confirmation: do it, then say exactly what
+  you added and where. DELETING anything needs a spoken yes first: name the
+  exact item ("Delete 'Finance quiz prep' from Asana?") and wait for their
+  answer. Never delete more than one item per yes, and never delete on a
+  guess about which item they meant.
 - Never narrate that you're about to use one. No "Let me search for that" or
   "I'll check that now" — go silent, use it, then answer. The user sees a
   spinner; they don't need commentary.
