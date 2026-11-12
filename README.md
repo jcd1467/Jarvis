@@ -103,6 +103,10 @@ The to-do list is JARVIS's own, kept in `~/.jarvis/state.json`: "add call the
 bank to my list for Friday", "check off the homework", or click an item to
 tick it. Unfinished items carry over to the next day.
 
+Work shifts can land on it automatically: set `JARVIS_SHIFTS_ICS` to your
+calendar's private iCal address and the bridge checks it every 30 minutes
+while it runs, adding, updating and removing shift items — never yours.
+
 ### Windows: one-click start
 
 From the Jarvis folder, run this once to put **Start JARVIS** and **Stop

@@ -49,7 +49,7 @@ type WidgetData = {
   todos?: Todo[]
   clips?: Clips | null
 }
-type Todo = { id: string; text: string; done: boolean; overdue: boolean; date: string }
+type Todo = { id: string; text: string; done: boolean; overdue: boolean; date: string; synced?: string | null }
 type Clips = {
   clips: number | null
   views: number | null
@@ -317,7 +317,11 @@ function TodoList({ todos }: { todos: Todo[] }) {
           >
             <span className="w-check">{t.done ? '✓' : ''}</span>
             <span className="w-todo-text">{t.text}</span>
-            {t.overdue && !t.done && <span className="w-tag">CARRIED</span>}
+            {t.synced === 'shifts' ? (
+              <span className="w-tag">WORK</span>
+            ) : (
+              t.overdue && !t.done && <span className="w-tag">CARRIED</span>
+            )}
           </button>
         ))
       )}

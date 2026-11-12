@@ -56,9 +56,72 @@ const isDate = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? ''))
 export function todosFor(date = localDate()) {
   const { todos } = load()
   return todos
-    .filter((t) => t.date === date || (t.date < date && !t.done))
-    .map((t) => ({ id: t.id, text: t.text, done: Boolean(t.done), overdue: t.date < date, date: t.date }))
+    // Carry-over is for things to do. A synced item (a work shift) whose day
+    // has passed is history, not an unfinished task.
+    .filter((t) => t.date === date || (t.date < date && !t.done && !t.source))
+    .map((t) => ({
+      id: t.id,
+      text: t.text,
+      done: Boolean(t.done),
+      overdue: t.date < date,
+      date: t.date,
+      synced: t.source ?? null,
+    }))
     .sort((a, b) => Number(b.overdue) - Number(a.overdue) || a.date.localeCompare(b.date))
+}
+
+/**
+ * Make the items from one outside source (e.g. 'shifts') match `items`, each
+ * { key, date, text }. Matched by key: changed ones update in place (keeping
+ * their done mark), new ones are added, and ones the source no longer lists
+ * are removed — but only if today or later and not ticked off. Items the user
+ * or JARVIS added by hand are never touched.
+ */
+export function syncManaged(source, items) {
+  const state = load()
+  const today = localDate()
+  const want = new Map(items.map((it) => [it.key, it]))
+  let added = 0
+  let updated = 0
+  let removed = 0
+  const kept = []
+  for (const t of state.todos) {
+    if (t.source !== source) {
+      kept.push(t)
+      continue
+    }
+    const it = want.get(t.key)
+    if (it) {
+      if (t.date !== it.date || t.text !== it.text) {
+        t.date = it.date
+        t.text = it.text
+        updated++
+      }
+      want.delete(t.key)
+      kept.push(t)
+    } else if (t.date >= today && !t.done) {
+      removed++
+    } else {
+      kept.push(t)
+    }
+  }
+  for (const it of want.values()) {
+    kept.push({
+      id: randomUUID().slice(0, 8),
+      text: String(it.text).slice(0, 120),
+      date: it.date,
+      done: false,
+      source,
+      key: it.key,
+      created: new Date().toISOString(),
+    })
+    added++
+  }
+  if (added || updated || removed) {
+    state.todos = kept
+    save(state)
+  }
+  return { added, updated, removed }
 }
 
 export function clipTotals() {
@@ -140,7 +203,14 @@ export function listTools(changed = () => {}) {
           const date = isDate(args.date) ? args.date : localDate()
           const items = todosFor(date)
           if (!items.length) return ok(`Nothing on the list for ${date}.`)
-          return ok(items.map((t) => `${t.id} · ${t.date}${t.overdue ? ' (carried over)' : ''} · ${t.done ? 'done' : 'open'} · ${t.text}`).join('\n'))
+          return ok(
+            items
+              .map(
+                (t) =>
+                  `${t.id} · ${t.date}${t.overdue ? ' (carried over)' : ''}${t.synced === 'shifts' ? ' (work shift, synced from calendar)' : ''} · ${t.done ? 'done' : 'open'} · ${t.text}`,
+              )
+              .join('\n'),
+          )
         },
       ),
       tool(

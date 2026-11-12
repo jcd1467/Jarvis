@@ -38,6 +38,7 @@ import { fileURLToPath } from 'node:url'
 import { openRemote, proxyError, upstreamMessage, vetTarget, PROXY_UA } from './net.mjs'
 import { widgetData } from './widgets.mjs'
 import { clipTotals, listsServer, toggleTodo, todosFor } from './lists.mjs'
+import { startShiftSync } from './shifts.mjs'
 import { probeUrl, renderPage } from './page.mjs'
 import {
   builtinTools,
@@ -671,6 +672,10 @@ The to-do list:
   Use Asana only when they say Asana or a project.
 - Adding: do it, then one short sentence naming the item and the day.
 - "I finished …" or "check off …" marks it done. Remove only what they name.
+- Work shifts may already be on the list, synced from their calendar feed
+  automatically (marked as synced). Never add a shift by hand — it would be
+  a duplicate — and if they ask why one is there, say it came from their
+  schedule.
 
 Dashboards on request:
 - "How are my clips doing", "clip dashboard", "show my earnings": one markup
@@ -1335,6 +1340,10 @@ const bound = server.address()
 console.log(
   `[jarvis] bridge listening on ws://${bound.family === 'IPv6' ? `[${bound.address}]` : bound.address}:${bound.port}`,
 )
+// Work shifts from a calendar feed onto the to-do list, on a timer — runs
+// whenever the bridge is up, with or without a conversation. No-op unless
+// JARVIS_SHIFTS_ICS is set.
+startShiftSync()
 if (!LOOPBACK) {
   console.warn(
     `[jarvis] WARNING: listening on ${HOST}, not loopback — other machines on this network can reach the bridge`,
