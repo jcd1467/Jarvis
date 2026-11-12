@@ -43,3 +43,11 @@ test('clip totals keep only real numbers', async () => {
   assert.equal(c.views, 12000)
   assert.equal(c.bestViews, null)
 })
+
+test('team reports are saved and read back', async () => {
+  const { saveReport, lastReport } = await import('../bridge/lists.mjs')
+  saveReport('scout', 'Top campaign: example (source)')
+  assert.equal(lastReport('scout').text, 'Top campaign: example (source)')
+  const report = listTools().find((t) => t.name === 'team_report')
+  assert.match((await report.handler({}, {})).content[0].text, /today/)
+})

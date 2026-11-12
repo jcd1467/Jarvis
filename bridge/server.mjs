@@ -39,6 +39,8 @@ import { openRemote, proxyError, upstreamMessage, vetTarget, PROXY_UA } from './
 import { widgetData } from './widgets.mjs'
 import { clipTotals, listsServer, toggleTodo, todosFor } from './lists.mjs'
 import { startShiftSync } from './shifts.mjs'
+import { PROMPT_TEAM, TEAM, dailyScoutTask } from './team.mjs'
+import { lastReport, localDate, saveReport } from './lists.mjs'
 import { probeUrl, renderPage } from './page.mjs'
 import {
   builtinTools,
@@ -646,6 +648,8 @@ const PROMPT_BRIEF = `The morning brief:
      https://labs.bible.org/api/?passage=votd&type=json and quote it exactly
      with its reference; if that fails, WebSearch "verse of the day". Never
      quote scripture from memory — a misquoted verse is worse than none.
+  7. The scout's report (\`team_report\`): if it is from today, one clause on
+     the best campaign or "nothing new". Do not run the team for the brief.
 - Speak no more than four short sentences: the day and date; the weather in
   one clause; the first fixed commitment and its time; the count of tasks due
   (name one if it is overdue); the single most important headline. End by
@@ -697,6 +701,7 @@ const SYSTEM_PROMPT = [
   PROMPT_CORE,
   PROMPT_PROFILE,
   PROMPT_BRIEF,
+  PROMPT_TEAM,
   PROMPT_BLADES,
   DISABLED.has('interface') ? '' : PROMPT_INTERFACE,
   DISABLED.has('browser') ? '' : PROMPT_BROWSER,
@@ -1427,6 +1432,71 @@ const bound = server.address()
 console.log(
   `[jarvis] bridge listening on ws://${bound.family === 'IPv6' ? `[${bound.address}]` : bound.address}:${bound.port}`,
 )
+/**
+ * The daily scout run: once a day, the first time the bridge is up after
+ * 6 AM, the Scout runs unattended and its report is saved for the morning
+ * brief (team_report). Off unless JARVIS_DAILY_SCOUT=1. It runs as its own
+ * small session — web search and fetch only, the same policy hook — so it
+ * can touch nothing but the web, and costs one research run a day.
+ */
+const DAILY_SCOUT = process.env.JARVIS_DAILY_SCOUT === '1'
+let scoutRunning = false
+
+async function maybeRunDailyScout() {
+  if (!DAILY_SCOUT || scoutRunning) return
+  const today = localDate()
+  const hour = Number(
+    new Date().toLocaleString('en-US', { timeZone: process.env.JARVIS_TIMEZONE?.trim() || undefined, hour: '2-digit', hourCycle: 'h23' }),
+  )
+  if (hour < 6 || lastReport('scout')?.date === today) return
+  scoutRunning = true
+  console.log('[jarvis] daily scout: running')
+  try {
+    let text = ''
+    const run = query({
+      prompt: dailyScoutTask(today),
+      options: {
+        systemPrompt: TEAM.scout.prompt,
+        tools: ['WebSearch', 'WebFetch'],
+        mcpServers: {},
+        strictMcpConfig: true,
+        settingSources: [],
+        model: TEAM.scout.model,
+        effort: 'medium',
+        maxTurns: TEAM.scout.maxTurns,
+        cwd: WORKSPACE,
+        persistSession: false,
+        hooks: { PreToolUse: [{ hooks: [enforcePolicy] }] },
+        canUseTool: async (name) =>
+          name === 'WebSearch' || name === 'WebFetch'
+            ? { behavior: 'allow' }
+            : { behavior: 'deny', message: 'Not available in the daily scout run.' },
+        ...(process.env.JARVIS_CLAUDE_EXECUTABLE
+          ? { pathToClaudeCodeExecutable: process.env.JARVIS_CLAUDE_EXECUTABLE }
+          : {}),
+      },
+    })
+    for await (const msg of run) {
+      if (msg.type === 'result') text = msg.subtype === 'success' ? String(msg.result ?? '') : ''
+    }
+    if (text.trim()) {
+      saveReport('scout', text.trim())
+      console.log('[jarvis] daily scout: report saved for the morning brief')
+    } else {
+      console.warn('[jarvis] daily scout: finished without a report')
+    }
+  } catch (err) {
+    console.warn(`[jarvis] daily scout: failed (${err?.message ?? err})`)
+  } finally {
+    scoutRunning = false
+  }
+}
+if (DAILY_SCOUT) {
+  console.log('[jarvis] daily scout on — runs once a day after 6 AM')
+  setTimeout(() => void maybeRunDailyScout(), 20_000)
+  setInterval(() => void maybeRunDailyScout(), 30 * 60_000).unref?.()
+}
+
 // Work shifts from a calendar feed onto the to-do list, on a timer — runs
 // whenever the bridge is up, with or without a conversation. No-op unless
 // JARVIS_SHIFTS_ICS is set.
@@ -1715,6 +1785,8 @@ wss.on('connection', (socket) => {
       // without this line nothing in the project has a say at all.
       model: MODEL,
       effort: EFFORT,
+      // His clipping team (bridge/team.mjs), reached through the Agent tool.
+      agents: TEAM,
       // A server-level rule (mcp__<server>) removes every tool on it from the
       // model's context, which is the point: not merely denied, absent.
       ...(SKIP_CONNECTORS.length

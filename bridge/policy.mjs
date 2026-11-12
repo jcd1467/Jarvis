@@ -210,7 +210,9 @@ export function decideTool(name, allowWrites = false, writeServers = []) {
  * which is exactly what read-only mode withholds.
  */
 export function builtinTools(allowWrites = false) {
-  const reads = ['Read', 'Grep', 'Glob', 'WebSearch', 'WebFetch', 'ToolSearch']
+  // Agent is how JARVIS hands work to his team (bridge/team.mjs). Each
+  // sub-agent's own tool calls pass through the same policy hook.
+  const reads = ['Read', 'Grep', 'Glob', 'WebSearch', 'WebFetch', 'ToolSearch', 'Agent']
   return allowWrites ? [...reads, 'Bash', 'Write', 'Edit', 'NotebookEdit'] : reads
 }
 

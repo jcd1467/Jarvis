@@ -33,9 +33,9 @@ export function localDate(d = new Date()) {
 function load() {
   try {
     const s = JSON.parse(readFileSync(PATH, 'utf8'))
-    return { todos: Array.isArray(s.todos) ? s.todos : [], clips: s.clips ?? null }
+    return { todos: Array.isArray(s.todos) ? s.todos : [], clips: s.clips ?? null, reports: s.reports ?? {} }
   } catch {
-    return { todos: [], clips: null }
+    return { todos: [], clips: null, reports: {} }
   }
 }
 
@@ -122,6 +122,17 @@ export function syncManaged(source, items) {
     save(state)
   }
   return { added, updated, removed }
+}
+
+/** Save a team report (e.g. the daily scout run), replacing the last one. */
+export function saveReport(kind, text) {
+  const state = load()
+  state.reports = { ...(state.reports ?? {}), [kind]: { date: localDate(), at: new Date().toISOString(), text: String(text).slice(0, 4000) } }
+  save(state)
+}
+
+export function lastReport(kind) {
+  return load().reports?.[kind] ?? null
 }
 
 export function clipTotals() {
@@ -246,6 +257,16 @@ export function listTools(changed = () => {}) {
           save(state)
           changed()
           return ok(`Removed: ${describe(hits[0])}`)
+        },
+      ),
+      tool(
+        'team_report',
+        "The latest unattended report from the team — today the daily scout run (paid clipping campaigns worth his time). Read it for the morning brief and whenever he asks what the scout found. Says when it was written; anything not from today is stale.",
+        { kind: z.string().optional().describe('Which report. Default "scout".') },
+        async (args) => {
+          const r = lastReport(String(args.kind ?? 'scout'))
+          if (!r) return ok('No report yet.')
+          return ok(`Written ${r.at} (${r.date === localDate() ? 'today' : 'not today'}):\n${r.text}`)
         },
       ),
       tool(

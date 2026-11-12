@@ -137,7 +137,9 @@ test('WebFetch names that resolve to private addresses are caught', async () => 
 test('only the built-ins JARVIS uses are offered', () => {
   const ro = builtinTools(false)
   assert.deepEqual(ro.filter((t) => ['Bash', 'Write', 'Edit'].includes(t)), [])
-  for (const absent of ['Agent', 'Task', 'CronCreate', 'RemoteTrigger', 'SendMessage', 'AskUserQuestion', 'Skill']) {
+  // Agent is offered on purpose: it is how JARVIS reaches his team (team.mjs).
+  assert.ok(ro.includes('Agent'))
+  for (const absent of ['Task', 'CronCreate', 'RemoteTrigger', 'SendMessage', 'AskUserQuestion', 'Skill']) {
     assert.ok(!ro.includes(absent), `${absent} should not be offered`)
     assert.ok(!builtinTools(true).includes(absent), `${absent} should not be offered with writes`)
   }

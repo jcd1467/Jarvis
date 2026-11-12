@@ -107,6 +107,17 @@ Work shifts can land on it automatically: set `JARVIS_SHIFTS_ICS` to your
 calendar's private iCal address and the bridge checks it every 30 minutes
 while it runs, adding, updating and removing shift items — never yours.
 
+### The clipping team
+
+JARVIS is chief of staff to five sub-agents (`bridge/team.mjs`): **scout**
+(paid clipping campaigns), **trends** (what is getting views), **coach** (clip
+plans and CapCut steps), **copywriter** (titles, captions, hashtags, posting
+times) and **analyst** (real numbers and the Clip Tracker). Say "put the team on
+it" or ask for clipping work that needs research. None of them can post, edit
+video, touch mail or the calendar, or draw on screen; only the analyst may
+update Asana. `JARVIS_DAILY_SCOUT=1` runs the scout once a day by itself and
+puts its report in the morning brief.
+
 ### Windows: one-click start
 
 From the Jarvis folder, run this once to put **Start JARVIS** and **Stop
