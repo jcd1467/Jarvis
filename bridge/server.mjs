@@ -744,6 +744,65 @@ function elevenKey() {
 const VOICE_ID = process.env.JARVIS_VOICE_ID ?? 'JBFqnCBsd6RMkjVDRZzb'
 
 /**
+ * Who does the listening. 'elevenlabs' (default) sends each utterance to
+ * ElevenLabs Scribe; 'browser' uses Chrome's own recogniser, which is free, and
+ * keeps ElevenLabs for the voice alone — the credits then last far longer.
+ */
+const LISTEN = (process.env.JARVIS_LISTEN ?? 'elevenlabs').trim().toLowerCase()
+
+/**
+ * The ElevenLabs balance, checked at start and hourly. When this month's
+ * credits are spent, /health stops offering the ElevenLabs voice, so the page
+ * speaks with the browser's instead of failing on every sentence — and the
+ * next check after the reset brings the real voice back with no edit needed.
+ * A key without permission to read its subscription simply skips the check.
+ */
+const eleven = { exhausted: false, checked: false }
+
+async function checkElevenCredits() {
+  const key = elevenKey()
+  if (!key) return
+  try {
+    const res = await fetch('https://api.elevenlabs.io/v1/user/subscription', {
+      headers: { 'xi-api-key': key },
+    })
+    if (!res.ok) {
+      if (!eleven.checked) {
+        console.log(`[jarvis] ElevenLabs credits: could not check (${res.status}) — the key may lack the user_read permission`)
+      }
+      eleven.checked = true
+      return
+    }
+    const sub = await res.json()
+    const used = Number(sub.character_count)
+    const limit = Number(sub.character_limit)
+    const reset = Number(sub.next_character_count_reset_unix)
+    if (!Number.isFinite(used) || !Number.isFinite(limit) || limit <= 0) return
+    const was = eleven.exhausted
+    eleven.exhausted = used >= limit
+    const resetText = Number.isFinite(reset) && reset > 0
+      ? new Date(reset * 1000).toLocaleString('en-US', {
+          timeZone: process.env.JARVIS_TIMEZONE?.trim() || undefined,
+          weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit',
+        })
+      : 'an unknown date'
+    if (!eleven.checked || was !== eleven.exhausted) {
+      console.log(
+        eleven.exhausted
+          ? `[jarvis] ElevenLabs credits used up (${used.toLocaleString()} of ${limit.toLocaleString()}). Using the browser voice until they reset on ${resetText}.`
+          : `[jarvis] ElevenLabs credits: ${(limit - used).toLocaleString()} of ${limit.toLocaleString()} left — resets ${resetText}.`,
+      )
+    }
+    eleven.checked = true
+  } catch (err) {
+    if (!eleven.checked) console.log(`[jarvis] ElevenLabs credits: could not check (${err.message})`)
+    eleven.checked = true
+  }
+}
+void checkElevenCredits()
+setInterval(() => void checkElevenCredits(), 60 * 60_000).unref?.()
+
+/**
  * Where /file is permitted to read from, and how big a read may get.
  *
  * The roots are realpath'd once at boot so the containment check below compares
@@ -996,9 +1055,9 @@ const handleRequest = async (req, res) => {
     // with a key the app transcribes with Scribe and speaks with ElevenLabs;
     // without one it falls back to the browser's own recogniser and voice, so a
     // student with nothing configured still has a working assistant.
-    const eleven = Boolean(elevenKey())
+    const voice = Boolean(elevenKey()) && !eleven.exhausted
     res.writeHead(200, { ...cors, 'content-type': 'application/json' })
-    return res.end(JSON.stringify({ ok: true, tts: eleven, stt: eleven }))
+    return res.end(JSON.stringify({ ok: true, tts: voice, stt: voice && LISTEN !== 'browser' }))
   }
 
   // The always-on widgets: market indices, weather, countdowns. Polled by the
@@ -1378,7 +1437,8 @@ if (!LOOPBACK) {
   )
 }
 console.log(
-  `[jarvis] speech ${elevenKey() ? `via ElevenLabs (key from ${process.env.ELEVENLABS_API_KEY ? 'ELEVENLABS_API_KEY' : 'the elevenlabs MCP server'})` : 'using browser fallback voice'}`,
+  `[jarvis] speech ${elevenKey() ? `via ElevenLabs (key from ${process.env.ELEVENLABS_API_KEY ? 'ELEVENLABS_API_KEY' : 'the elevenlabs MCP server'})` : 'using browser fallback voice'}` +
+    (elevenKey() && LISTEN === 'browser' ? ' · listening with the browser (hybrid mode)' : ''),
 )
 console.log(`[jarvis] model ${MODEL} · effort ${EFFORT}`)
 console.log(
