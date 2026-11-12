@@ -106,6 +106,7 @@ export function shiftItems(events, { today = localDate(), days = 21, match = '',
 
 let timer = null
 let running = false
+let reported = false
 
 async function syncOnce(url) {
   if (running) return
@@ -122,12 +123,28 @@ async function syncOnce(url) {
       clearTimeout(t)
     }
     if (!/BEGIN:VCALENDAR/.test(text)) throw new Error('not a calendar feed')
-    const items = shiftItems(parseIcs(text), {
-      days: Number(process.env.JARVIS_SHIFTS_DAYS) || 21,
-      match: process.env.JARVIS_SHIFTS_MATCH ?? '',
+    const events = parseIcs(text)
+    const days = Number(process.env.JARVIS_SHIFTS_DAYS) || 21
+    const match = process.env.JARVIS_SHIFTS_MATCH ?? ''
+    const items = shiftItems(events, {
+      days,
+      match,
       label: process.env.JARVIS_SHIFTS_LABEL?.trim() || 'Work',
     })
     const { added, updated, removed } = syncManaged('shifts', items)
+    // The first check always says what it found, so "nothing happened" can be
+    // told apart from "nothing matched". After that, only changes are logged.
+    if (!reported) {
+      reported = true
+      const upcoming = shiftItems(events, { days, match: '' }).length
+      console.log(
+        `[jarvis] shifts: feed read — ${events.length} events in it, ${upcoming} in the next ${days} days, ` +
+          `${items.length} matching${match ? ` "${match}"` : ''}`,
+      )
+      if (upcoming && !items.length && match) {
+        console.log(`[jarvis] shifts: none of them contain "${match}" — check JARVIS_SHIFTS_MATCH`)
+      }
+    }
     if (added || updated || removed) {
       console.log(`[jarvis] shifts: ${added} added, ${updated} updated, ${removed} removed`)
     }
