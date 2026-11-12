@@ -45,6 +45,7 @@ type WidgetData = {
       }
     | null
   countdowns: { label: string; date: string }[]
+  verse?: { ref: string; text: string } | null
 }
 
 function todayKey(d = new Date()) {
@@ -262,6 +263,16 @@ function NextUp({ now, agenda, countdowns }: { now: Date; agenda: Agenda | null;
   )
 }
 
+function Verse({ v }: { v: NonNullable<WidgetData['verse']> }) {
+  return (
+    <div className="w-block w-verse">
+      <div className="w-title">VERSE</div>
+      <p className="w-verse-text">“{v.text}”</p>
+      {v.ref && <div className="w-verse-ref">{v.ref}</div>}
+    </div>
+  )
+}
+
 export function Widgets() {
   const show = useStore((s) => s.ui.chrome.widgets)
   const now = useNow(1000)
@@ -279,6 +290,7 @@ export function Widgets() {
         data?.markets && <Markets m={data.markets} />
       )}
       <NextUp now={now} agenda={agenda} countdowns={data?.countdowns ?? []} />
+      {data?.verse && <Verse v={data.verse} />}
     </div>
   )
 }

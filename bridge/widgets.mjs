@@ -16,6 +16,8 @@
  *   JARVIS_WEATHER_LOCATION  "Plainwell, Michigan" — town, then state or country
  *   JARVIS_UNITS             imperial (default) or metric
  *   JARVIS_COUNTDOWNS        "GTA 6=2026-11-19; Finals=2026-12-14"
+ *   JARVIS_VERSE_REF         "Hebrews 12:11 (ESV)"
+ *   JARVIS_VERSE_TEXT        the verse, exactly as the translation has it
  */
 
 const UA =
@@ -219,11 +221,21 @@ export function parseCountdowns(raw = process.env.JARVIS_COUNTDOWNS ?? '') {
     .filter(Boolean)
 }
 
+/**
+ * A fixed verse, typed by the user. Shown exactly as written — nothing here
+ * fetches or alters scripture, so it cannot be misquoted by the software.
+ */
+export function verse() {
+  const text = process.env.JARVIS_VERSE_TEXT?.trim()
+  if (!text) return null
+  return { ref: process.env.JARVIS_VERSE_REF?.trim() ?? '', text: text.slice(0, 600) }
+}
+
 /** Everything the widgets need, in one response. Never throws. */
 export async function widgetData() {
   const [m, w] = await Promise.all([
     markets().catch(() => ({ status: 'unavailable', reason: 'market data failed', items: [] })),
     weather().catch(() => ({ status: 'unavailable', reason: 'weather failed' })),
   ])
-  return { markets: m, weather: w, countdowns: parseCountdowns() }
+  return { markets: m, weather: w, countdowns: parseCountdowns(), verse: verse() }
 }
