@@ -4,7 +4,7 @@ import { Hud } from './ui/Hud'
 import { Boot } from './ui/Boot'
 import { Ignition } from './ui/Ignition'
 import { Diagnostics } from './ui/Diagnostics'
-import { useStore } from './store'
+import { useStore, type Agenda } from './store'
 import { startVoice, type Voice, type VoiceMode } from './lib/voice'
 import { createSpeaker, cycleVoice, currentVoiceName } from './lib/tts'
 import * as sfx from './lib/sfx'
@@ -444,6 +444,9 @@ export default function App() {
           break
         case 'screen':
           s.clearScreen(a.what ?? 'all')
+          break
+        case 'agenda':
+          s.setAgenda(args as unknown as Agenda)
           break
         default:
           console.warn('[jarvis] unknown ui op:', op, args)

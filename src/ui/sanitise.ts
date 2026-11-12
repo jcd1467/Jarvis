@@ -201,6 +201,7 @@ const ALLOWED_CLASSES = new Set([
   'hud-tag', 'hud-metric', 'hud-unit', 'hud-note', 'hud-img', 'hud-caption',
   'hud-grid', 'hud-bar', 'hud-dim', 'hud-hot',
   'hud-gallery', 'hud-thumb', 'hud-video', 'hud-embed', 'hud-figure',
+  'hud-cols', 'hud-col', 'hud-col-v', 'hud-col-k', 'hud-ring', 'hud-up', 'hud-down',
 ])
 
 function narrowClasses(root: Element) {

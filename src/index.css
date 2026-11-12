@@ -261,7 +261,8 @@ body::after {
   left: 50%;
   bottom: 132px;
   transform: translateX(-50%);
-  width: min(760px, 68vw);
+  /* The third term keeps the log clear of the bottom-left widget column. */
+  width: min(760px, 68vw, calc(100vw - 680px));
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -754,6 +755,90 @@ kbd {
   background: var(--accent);
   box-shadow: 0 0 10px var(--accent);
 }
+
+/* Column chart. Each column's height is its --v (0..1), the one inline style
+   the sanitiser lets through. The bar is the ::before, ordered between the
+   value above it and the label below it. */
+.hud-cols {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 118px;
+  padding-top: 4px;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.hud-col {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 3px;
+}
+.hud-col::before {
+  content: '';
+  order: 1;
+  width: 70%;
+  max-width: 34px;
+  height: calc(max(var(--v, 0), 0.02) * 76px);
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--accent) 35%, transparent),
+    var(--accent)
+  );
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.hud-col-v {
+  order: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: #eafff6;
+  white-space: nowrap;
+}
+.hud-col-k {
+  order: 2;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  opacity: 0.55;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  margin-bottom: -16px;
+}
+.hud-cols:has(.hud-col-k) { margin-bottom: 18px; }
+
+/* Ring gauge: a conic fill masked to a ring, the figure centred inside. */
+.hud-ring {
+  position: relative;
+  width: 112px;
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.hud-ring::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--accent) calc(var(--v, 0) * 1turn),
+    color-mix(in srgb, var(--accent) 14%, transparent) 0
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px));
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 50%, transparent));
+}
+.hud-ring .hud-metric { font-size: 26px; }
+.hud-ring .hud-unit { font-size: 8px; }
+
+.hud-up { color: #7dffcf; }
+.hud-down { color: #ff8a8a; }
 
 /* Shown instead of a blank rectangle when a panel arrives with nothing in it. */
 .p-empty {
@@ -1902,4 +1987,103 @@ kbd {
   object-fit: cover;
   transform: scaleX(-1);
   background: #000;
+}
+
+/* ---------------------------------------------------------------- widgets */
+
+/* Always-on readouts: clock and weather top-left, markets top-right, next up
+   and countdowns bottom-left. Same visual language as the rails: hairline
+   rules, small spaced capitals, the accent used for the one number that
+   matters in each block. */
+.widgets { position: absolute; inset: 0; pointer-events: none; }
+
+.w-block {
+  position: absolute;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--accent) 6%, rgba(2, 10, 8, 0.5)),
+    color-mix(in srgb, var(--accent) 2%, rgba(2, 10, 8, 0.6))
+  );
+  backdrop-filter: blur(6px);
+  font-size: 9.5px;
+}
+.w-block::before,
+.w-block::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--accent);
+  opacity: 0.7;
+}
+.w-block::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+.w-block::after { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+
+.w-title { font-size: 8px; letter-spacing: 0.3em; opacity: 0.55; margin-bottom: 6px; }
+.w-gap { margin-top: 10px; }
+.w-dim { opacity: 0.45; }
+.w-warn { color: #ff8a8a; letter-spacing: 0.12em; font-size: 8.5px; }
+.w-foot { margin-top: 4px; font-size: 7.5px; text-transform: none; letter-spacing: 0.04em; }
+.w-tag { font-size: 7px; letter-spacing: 0.16em; opacity: 0.5; margin-left: auto; }
+.w-up { color: #7dffcf; }
+.w-down { color: #ff8a8a; }
+
+.w-clock { top: 96px; left: 92px; width: 228px; }
+.w-time {
+  font-size: 30px;
+  font-weight: 300;
+  letter-spacing: 0.06em;
+  color: #eafff6;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 45%, transparent);
+  line-height: 1;
+}
+.w-date { margin-top: 5px; font-size: 8.5px; letter-spacing: 0.26em; opacity: 0.7; }
+.w-weather {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.w-temp { font-size: 16px; color: #eafff6; letter-spacing: 0.04em; }
+.w-sky { font-size: 8px; letter-spacing: 0.12em; opacity: 0.7; }
+
+.w-markets { top: 76px; right: 92px; width: 300px; }
+.w-mkt {
+  display: grid;
+  grid-template-columns: 54px 1fr 74px 62px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.04em;
+}
+.w-mkt + .w-mkt { border-top: 1px solid color-mix(in srgb, var(--accent) 9%, transparent); }
+.w-mkt-name { font-family: 'Chakra Petch', sans-serif; letter-spacing: 0.14em; font-size: 8.5px; opacity: 0.8; }
+.w-mkt-price { text-align: right; color: #eafff6; }
+.w-mkt-chg { text-align: right; font-size: 9px; }
+.w-spark { width: 100%; height: 18px; display: block; }
+.w-spark path { fill: none; stroke: currentColor; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.w-spark-empty { height: 1px; background: color-mix(in srgb, var(--accent) 15%, transparent); }
+
+.w-next { bottom: 96px; left: 92px; width: 228px; }
+.w-next-row { display: flex; align-items: baseline; gap: 8px; padding: 2px 0; }
+.w-next-time { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--accent); min-width: 62px; white-space: nowrap; }
+.w-next-label { text-transform: none; letter-spacing: 0.02em; font-size: 11.5px; color: #e9fff5; }
+.w-count { display: flex; align-items: baseline; gap: 6px; padding: 2px 0; }
+.w-count-n {
+  font-size: 18px;
+  color: var(--accent);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--accent) 50%, transparent);
+  min-width: 30px;
+}
+.w-count-label { margin-left: 4px; text-transform: none; letter-spacing: 0.02em; font-size: 11px; color: #e9fff5; }
+
+/* Not enough room around the reactor below this width: the widgets would sit
+   on top of the blades and the log. */
+@media (max-width: 1000px), (max-height: 640px) {
+  .widgets { display: none; }
 }

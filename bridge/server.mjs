@@ -36,6 +36,7 @@ import { readFile, realpath, stat } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve as resolvePath } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { openRemote, proxyError, upstreamMessage, vetTarget, PROXY_UA } from './net.mjs'
+import { widgetData } from './widgets.mjs'
 import { probeUrl, renderPage } from './page.mjs'
 import {
   builtinTools,
@@ -658,6 +659,21 @@ const PROMPT_BRIEF = `The morning brief:
   for their own reading. Read it only if they ask.
 - If a source is not connected or fails, leave its section out and say so in
   one clause at the end — never invent entries to fill it.
+- Whenever you have worked out a day's timed schedule (a brief, "what's my
+  day", "what do I have tomorrow"), also call \`ui_agenda\` with it, silently,
+  so the Next Up widget on their screen stays current.
+
+Dashboards on request:
+- "How are my clips doing", "clip dashboard", "show my earnings": one markup
+  blade titled "CLIP EARNINGS", built only from the numbers you just read (their
+  Clip Tracker in Asana, their Whop / Vyro dashboards, TikTok analytics) —
+  never estimates. Layout, top to bottom: a .hud-grid with total views and
+  total earnings as .hud-metric figures (add a .hud-ring for progress only if
+  their notes state a goal); a .hud-cols chart of views for the last seven
+  clips, oldest first, each --v scaled to the largest; then .hud-rows for the
+  three best clips (label, platform tag, views and earnings in .hud-sub).
+  Speak two sentences: the totals, and the best clip. If any number could not
+  be read, say which and leave it off the card.
 
 `
 
@@ -943,6 +959,14 @@ const handleRequest = async (req, res) => {
     const eleven = Boolean(elevenKey())
     res.writeHead(200, { ...cors, 'content-type': 'application/json' })
     return res.end(JSON.stringify({ ok: true, tts: eleven, stt: eleven }))
+  }
+
+  // The always-on widgets: market indices, weather, countdowns. Polled by the
+  // page about once a minute; widgets.mjs caches each source.
+  if (req.method === 'GET' && req.url === '/widgets') {
+    const data = await widgetData()
+    res.writeHead(200, { ...cors, 'content-type': 'application/json', 'cache-control': 'no-store' })
+    return res.end(JSON.stringify(data))
   }
 
   // Serve local image files to the page. Screenshots and generated art land on

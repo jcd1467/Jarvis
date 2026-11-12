@@ -52,6 +52,12 @@ export type Blade = {
   hold: 'turn' | 'sticky'
 }
 
+/** One day's timeline, pushed by the ui_agenda tool. Times are local HH:MM. */
+export type Agenda = {
+  date: string
+  items: { time: string; label: string; tag: string }[]
+}
+
 export type Turn = {
   id: string
   role: 'user' | 'jarvis'
@@ -139,6 +145,7 @@ export type UiState = {
     toolBadge: boolean    // the active-tool readout under the reactor
     suggestions: boolean  // the "try saying…" hint
     brand: boolean        // the J.A.R.V.I.S. wordmark + status
+    widgets: boolean      // clock, weather, markets, next up, countdowns
   }
   effect: UiEffect | null
 }
@@ -147,7 +154,7 @@ export const UI_DEFAULTS: UiState = {
   accent: null, background: null, palette: {},
   reactor: { color: null, scale: 1, intensity: 1, spin: 1, style: 'ring', visible: true },
   orbits: [],
-  chrome: { systems: true, transcript: true, toolBadge: true, suggestions: true, brand: true },
+  chrome: { systems: true, transcript: true, toolBadge: true, suggestions: true, brand: true, widgets: true },
   effect: null,
 }
 
@@ -240,6 +247,8 @@ type State = {
   expandedBlade: string | null
   /** JARVIS's control over his own appearance. UI_DEFAULTS == the stock look. */
   ui: UiState
+  /** The day's timed items for the "Next up" widget, as JARVIS last set them. */
+  agenda: Agenda | null
 
   setVoice: (v: string) => void
   setGestures: (on: boolean) => void
@@ -267,6 +276,7 @@ type State = {
   clearOrbits: () => void
   fireEffect: (kind: UiEffect['kind']) => void
   resetUi: () => void
+  setAgenda: (a: Agenda | null) => void
   clearScreen: (what: 'all' | 'panels' | 'transcript') => void
 }
 
@@ -287,7 +297,9 @@ export const useStore = create<State>((set) => ({
   expandedBlade: null,
   bootNote: '',
   ui: defaultUi(),
+  agenda: null,
 
+  setAgenda: (agenda) => set({ agenda }),
   setVoice: (voice) => set({ voice }),
   setGestures: (gestures) => set({ gestures }),
   setLooking: (looking) => set({ looking }),

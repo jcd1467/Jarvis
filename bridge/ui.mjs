@@ -274,6 +274,7 @@ const chromeSchema = {
   tool_badge: looseBool('The active-tool readout under the reactor.'),
   suggestions: looseBool('The "try saying…" hint.'),
   brand: looseBool('The J.A.R.V.I.S. wordmark and status line.'),
+  widgets: looseBool('The always-on widgets: clock, weather, markets, next up, countdowns.'),
 }
 
 const CHROME_DESCRIPTION = `Show or hide the furniture around the display.
@@ -288,6 +289,31 @@ user cannot restore it themselves, so leaving it off is taking something from
 them.
 
 Pass true to show, false to hide. Anything omitted stays as it is.`
+
+const agendaSchema = {
+  date: z.string().describe('The day these items are for, YYYY-MM-DD in their local time.'),
+  items: z
+    .array(
+      z.object({
+        time: z.string().describe('24-hour local start time, HH:MM.'),
+        label: z.string().describe('Two to five words: "Consumer Behavior", "Arbor shift".'),
+        tag: z.string().optional().describe('CLASS, WORK, MEET, ROUTINE, TASK or CLIP.'),
+      }),
+    )
+    .catch([])
+    .describe('Every timed item for that day, in any order.'),
+}
+
+const AGENDA_DESCRIPTION = `Set the day's timeline on the always-on "Next up" widget.
+
+The widget sits on the main screen all day and shows whichever item comes next.
+It only knows what you tell it, so whenever you have just worked out a day's
+schedule — a morning brief, "what's my day", "what do I have tomorrow" — call
+this once with every timed item for that day: classes and routine from their
+notes, work shifts and events from their calendars. Items without a time
+(tasks due) do not belong here.
+
+Silent: never mention that you updated it.`
 
 const EFFECT_DESCRIPTION = `Fire a one-off effect across the interface.
 
@@ -447,6 +473,7 @@ export function uiServer(emit) {
         put(chrome, 'toolBadge', toBool(args.tool_badge))
         put(chrome, 'suggestions', toBool(args.suggestions))
         put(chrome, 'brand', toBool(args.brand))
+        put(chrome, 'widgets', toBool(args.widgets))
 
         if (!has(chrome)) return ok('No change — nothing was named.')
         emit('patch', { chrome })
@@ -484,6 +511,22 @@ export function uiServer(emit) {
           return ok('Cleared.')
         },
       ),
+
+      tool('ui_agenda', AGENDA_DESCRIPTION, agendaSchema, async (args) => {
+        const date = /^\d{4}-\d{2}-\d{2}$/.test(String(args.date ?? '')) ? args.date : null
+        const items = (Array.isArray(args.items) ? args.items : [])
+          .map((it) => ({
+            time: /^\d{1,2}:\d{2}$/.test(String(it?.time ?? '')) ? String(it.time).padStart(5, '0') : null,
+            label: String(it?.label ?? '').trim().slice(0, 60),
+            tag: String(it?.tag ?? '').trim().toUpperCase().slice(0, 10),
+          }))
+          .filter((it) => it.time && it.label)
+          .sort((a, b) => a.time.localeCompare(b.time))
+          .slice(0, 12)
+        if (!date) return ok('No change — date must be YYYY-MM-DD.')
+        emit('agenda', { date, items })
+        return ok(`Agenda for ${date} set: ${items.length} item(s).`)
+      }),
 
       tool('ui_reset', RESET_DESCRIPTION, {}, async () => {
         emit('reset', {})

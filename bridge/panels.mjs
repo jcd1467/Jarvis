@@ -43,6 +43,16 @@ styling and the row lands as unformatted text.
   .hud-video           a <video> player, full width of the panel
   .hud-embed           16:9 wrapper for an <iframe>; put the iframe inside it
   .hud-figure          an image or video with its .hud-caption grouped beneath
+  .hud-cols            column chart container; one .hud-col per bar
+  .hud-col             one column; style="--v:0.8" is its height (0..1, scale
+                       to the largest value); inside it a .hud-col-v (value
+                       printed above the bar) then a .hud-col-k (label below)
+  .hud-col-v           the value on a column, e.g. "12.4k"
+  .hud-col-k           the label under a column, e.g. "Mon" or "Clip 3"
+  .hud-ring            ring gauge; style="--v:0.62" fills 62%. Put a
+                       .hud-metric and .hud-unit inside — they sit in its centre
+  .hud-up / .hud-down  colour a change green (up) or red (down); only for a
+                       real gain or loss, never decoration
 
 PICTURES AND VIDEO — these work. Use them.
   - Images from the web render. Image-search results, article thumbnails,
@@ -133,6 +143,19 @@ A video result — embedded and playable:
 
 A direct video file:
 <video class="hud-video" controls playsinline preload="metadata" poster="https://cdn.example.com/still.jpg"><source src="https://cdn.example.com/clip.mp4" type="video/mp4"></video>
+
+A column chart (views per clip, scaled to the largest):
+<div class="hud-cols">
+  <div class="hud-col" style="--v:1"><span class="hud-col-v">48.2k</span><span class="hud-col-k">Nov 19</span></div>
+  <div class="hud-col" style="--v:0.31"><span class="hud-col-v">15k</span><span class="hud-col-k">Nov 20</span></div>
+  <div class="hud-col" style="--v:0.08"><span class="hud-col-v">3.9k</span><span class="hud-col-k">Nov 21</span></div>
+</div>
+
+Progress toward a goal, with a ring and a figure:
+<div class="hud-grid">
+  <div class="hud-ring" style="--v:0.42"><span class="hud-metric">$42</span><span class="hud-unit">of $100 goal</span></div>
+  <div><span class="hud-metric">67k</span><span class="hud-unit">views this week</span><p class="hud-note"><span class="hud-up">▲ 18%</span> on last week</p></div>
+</div>
 
 A short readout:
 <p class="hud-note">Three of the four services are nominal. <span class="hud-hot">Vercel is degraded</span> in eu-west.</p>
