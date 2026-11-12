@@ -5,6 +5,7 @@ import { Boot } from './ui/Boot'
 import { Ignition } from './ui/Ignition'
 import { Diagnostics } from './ui/Diagnostics'
 import { useStore, type Agenda } from './store'
+import { WIDGETS_REFRESH } from './ui/Widgets'
 import { startVoice, type Voice, type VoiceMode } from './lib/voice'
 import { createSpeaker, cycleVoice, currentVoiceName } from './lib/tts'
 import * as sfx from './lib/sfx'
@@ -447,6 +448,9 @@ export default function App() {
           break
         case 'agenda':
           s.setAgenda(args as unknown as Agenda)
+          break
+        case 'widgets':
+          window.dispatchEvent(new Event(WIDGETS_REFRESH))
           break
         default:
           console.warn('[jarvis] unknown ui op:', op, args)

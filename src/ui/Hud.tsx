@@ -209,7 +209,9 @@ export function Hud() {
       </header>
 
       {/* Left rail: which integrations are live */}
-      {ui.chrome.systems && (
+      {/* The widgets' left column takes this space; with them up, the rail
+          (which mostly reads "none linked · web") steps aside. */}
+      {ui.chrome.systems && !ui.chrome.widgets && (
         <aside className="rail rail-left">
           <div className="rail-title">SYSTEMS</div>
           {connected.length === 0 && <div className="rail-item dim">none linked</div>}

@@ -37,6 +37,7 @@ import { dirname, isAbsolute, join, relative, resolve as resolvePath } from 'nod
 import { fileURLToPath } from 'node:url'
 import { openRemote, proxyError, upstreamMessage, vetTarget, PROXY_UA } from './net.mjs'
 import { widgetData } from './widgets.mjs'
+import { clipTotals, listsServer, toggleTodo, todosFor } from './lists.mjs'
 import { probeUrl, renderPage } from './page.mjs'
 import {
   builtinTools,
@@ -629,7 +630,8 @@ const PROMPT_BRIEF = `The morning brief:
   1. Today's schedule: recurring items in their notes for today's weekday
      (classes, routine), plus today's events from every connected calendar
      (Outlook, Google Calendar — work shifts live there).
-  2. Tasks: Asana tasks due today, and anything overdue.
+  2. Tasks: their to-do list for today (\`todo_list\`, including carried-over
+     items), plus Asana tasks due today and anything overdue there.
   3. Mail: unread messages from real people since yesterday evening, from each
      connected mailbox. Skip newsletters, receipts, promotions, notifications.
   4. Weather for where they live: WebFetch
@@ -663,6 +665,13 @@ const PROMPT_BRIEF = `The morning brief:
   day", "what do I have tomorrow"), also call \`ui_agenda\` with it, silently,
   so the Next Up widget on their screen stays current.
 
+The to-do list:
+- "My to-do list", "my list", "add … to my list", "remind me to … on Friday"
+  mean their own list (\`todo_*\` tools), shown on their screen — not Asana.
+  Use Asana only when they say Asana or a project.
+- Adding: do it, then one short sentence naming the item and the day.
+- "I finished …" or "check off …" marks it done. Remove only what they name.
+
 Dashboards on request:
 - "How are my clips doing", "clip dashboard", "show my earnings": one markup
   blade titled "CLIP EARNINGS", built only from the numbers you just read (their
@@ -674,6 +683,8 @@ Dashboards on request:
   three best clips (label, platform tag, views and earnings in .hud-sub).
   Speak two sentences: the totals, and the best clip. If any number could not
   be read, say which and leave it off the card.
+  Then save the totals with \`clips_record\`, silently, so the CLIPS widget
+  on their screen shows them.
 
 `
 
@@ -964,9 +975,31 @@ const handleRequest = async (req, res) => {
   // The always-on widgets: market indices, weather, countdowns. Polled by the
   // page about once a minute; widgets.mjs caches each source.
   if (req.method === 'GET' && req.url === '/widgets') {
-    const data = await widgetData()
+    const data = { ...(await widgetData()), todos: todosFor(), clips: clipTotals() }
     res.writeHead(200, { ...cors, 'content-type': 'application/json', 'cache-control': 'no-store' })
     return res.end(JSON.stringify(data))
+  }
+
+  // A click on a to-do in the widget ticks it. Same origin rules as every
+  // other route; the body is one short id.
+  if (req.method === 'POST' && req.url === '/todos/toggle') {
+    let body = ''
+    for await (const chunk of req) {
+      body += chunk
+      if (body.length > 1024) {
+        req.destroy()
+        return
+      }
+    }
+    let id = ''
+    try {
+      id = String(JSON.parse(body).id ?? '')
+    } catch {
+      /* fall through to 400 */
+    }
+    const done = id && toggleTodo(id)
+    res.writeHead(done ? 200 : 400, { ...cors, 'content-type': 'application/json' })
+    return res.end(JSON.stringify({ ok: Boolean(done) }))
   }
 
   // Serve local image files to the page. Screenshots and generated art land on
@@ -1535,6 +1568,9 @@ wss.on('connection', (socket) => {
         ...(DISABLED.has('interface')
           ? {}
           : { jarvis_ui: uiServer((op, args) => send({ type: 'ui', op, args })) }),
+        // Their to-do list and clip totals, kept in ~/.jarvis/state.json. A
+        // change pings the page so the widgets refresh at once.
+        jarvis_lists: listsServer(() => send({ type: 'ui', op: 'widgets', args: {} })),
         // The user's own Chrome, over the extension's native-host socket. It
         // holds no per-connection state, but it is built here with the rest so
         // the write gate is read once, at the same point as everything else.

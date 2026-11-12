@@ -15,6 +15,7 @@ test('decideTool keeps its existing verdicts', () => {
   assert.equal(decideTool('Bash'), false)
   assert.equal(decideTool('Bash', true), true)
   assert.equal(decideTool('mcp__jarvis__display'), true)
+  assert.equal(decideTool('mcp__jarvis_lists__todo_add'), true)
   assert.equal(decideTool('mcp__someserver__list_devices'), true)
   assert.equal(decideTool('mcp__someserver__install_apk'), false)
   assert.equal(decideTool('mcp__higgsfield__generate_image'), true)

@@ -91,6 +91,18 @@ Click **INITIALISE**, allow the microphone when asked, and say **"Hey Jarvis"**.
 
 ---
 
+### Widgets and the to-do list
+
+The main screen carries always-on widgets: clock and weather, the S&P 500 /
+Dow / Nasdaq (free, delayed), a to-do list, clip totals, Next Up, countdowns
+and a verse. Set them up in `.env.local` (see `.env.example`:
+`JARVIS_WEATHER_LOCATION`, `JARVIS_COUNTDOWNS`, `JARVIS_VERSE_REF`,
+`JARVIS_VERSE_TEXT`, `JARVIS_MARKETS`).
+
+The to-do list is JARVIS's own, kept in `~/.jarvis/state.json`: "add call the
+bank to my list for Friday", "check off the homework", or click an item to
+tick it. Unfinished items carry over to the next day.
+
 ### Windows: one-click start
 
 From the Jarvis folder, run this once to put **Start JARVIS** and **Stop

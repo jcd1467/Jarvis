@@ -46,6 +46,17 @@ type WidgetData = {
     | null
   countdowns: { label: string; date: string }[]
   verse?: { ref: string; text: string } | null
+  todos?: Todo[]
+  clips?: Clips | null
+}
+type Todo = { id: string; text: string; done: boolean; overdue: boolean; date: string }
+type Clips = {
+  clips: number | null
+  views: number | null
+  earnings: number | null
+  best: string | null
+  bestViews: number | null
+  updatedAt: string
 }
 
 function todayKey(d = new Date()) {
@@ -61,6 +72,9 @@ function useNow(ms: number) {
   }, [ms])
   return now
 }
+
+/** Fired when JARVIS changes the to-do list or clip totals, and after a click. */
+export const WIDGETS_REFRESH = 'jarvis:widgets'
 
 function useWidgetData() {
   const [data, setData] = useState<WidgetData | null>(null)
@@ -82,9 +96,11 @@ function useWidgetData() {
     }
     void load()
     const id = setInterval(load, POLL_MS)
+    window.addEventListener(WIDGETS_REFRESH, load)
     return () => {
       alive = false
       clearInterval(id)
+      window.removeEventListener(WIDGETS_REFRESH, load)
     }
   }, [])
   return { data, down }
@@ -263,6 +279,95 @@ function NextUp({ now, agenda, countdowns }: { now: Date; agenda: Agenda | null;
   )
 }
 
+const compact = (n: number) =>
+  n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}k` : String(n)
+
+function TodoList({ todos }: { todos: Todo[] }) {
+  const [busy, setBusy] = useState<string | null>(null)
+  const toggle = async (id: string) => {
+    setBusy(id)
+    try {
+      await fetch(`${BRIDGE_HTTP_URL}/todos/toggle`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+    } finally {
+      setBusy(null)
+      window.dispatchEvent(new Event(WIDGETS_REFRESH))
+    }
+  }
+  const open = todos.filter((t) => !t.done).length
+  return (
+    <div className="w-block w-todo">
+      <div className="w-title">
+        TO DO
+        <span className="w-dim">{todos.length ? ` · ${open} LEFT` : ''}</span>
+      </div>
+      {todos.length === 0 ? (
+        <div className="w-dim">Say “add … to my to-do list”</div>
+      ) : (
+        todos.slice(0, 8).map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            className={`w-todo-item${t.done ? ' w-todo-done' : ''}${busy === t.id ? ' w-busy' : ''}`}
+            onClick={() => void toggle(t.id)}
+            title={t.done ? 'Mark not done' : 'Mark done'}
+          >
+            <span className="w-check">{t.done ? '✓' : ''}</span>
+            <span className="w-todo-text">{t.text}</span>
+            {t.overdue && !t.done && <span className="w-tag">CARRIED</span>}
+          </button>
+        ))
+      )}
+      {todos.length > 8 && <div className="w-dim w-foot">+{todos.length - 8} more — ask JARVIS</div>}
+    </div>
+  )
+}
+
+function ClipsWidget({ c }: { c: Clips | null }) {
+  return (
+    <div className="w-block w-clips">
+      <div className="w-title">
+        CLIPS
+        {c && (
+          <span className="w-dim">
+            {' · '}
+            {new Date(c.updatedAt).toLocaleDateString([], { month: 'short', day: 'numeric' }).toUpperCase()}
+          </span>
+        )}
+      </div>
+      {!c ? (
+        <div className="w-dim">No clips tracked yet — ask “how are my clips doing”</div>
+      ) : (
+        <>
+          <div className="w-clips-row">
+            <div>
+              <div className="w-clips-n">{c.earnings != null ? `$${c.earnings.toFixed(2)}` : '—'}</div>
+              <div className="w-dim">EARNED</div>
+            </div>
+            <div>
+              <div className="w-clips-n">{c.views != null ? compact(c.views) : '—'}</div>
+              <div className="w-dim">VIEWS</div>
+            </div>
+            <div>
+              <div className="w-clips-n">{c.clips ?? '—'}</div>
+              <div className="w-dim">CLIPS</div>
+            </div>
+          </div>
+          {c.best && (
+            <div className="w-clips-best">
+              <span className="w-dim">BEST</span> {c.best}
+              {c.bestViews != null && <span className="w-dim"> · {compact(c.bestViews)}</span>}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 function Verse({ v }: { v: NonNullable<WidgetData['verse']> }) {
   return (
     <div className="w-block w-verse">
@@ -279,18 +384,28 @@ export function Widgets() {
   const { data, down } = useWidgetData()
   const agenda = useAgenda()
   if (!show) return null
+  // Four columns: each stacks its own blocks, so a long to-do list pushes
+  // nothing on top of anything else.
   return (
     <div className="widgets">
-      <ClockWeather now={now} w={data?.weather ?? null} />
-      {down && !data ? (
-        <div className="w-block w-markets">
-          <div className="w-warn">WIDGET DATA UNAVAILABLE — BRIDGE NOT REACHABLE</div>
-        </div>
-      ) : (
-        data?.markets && <Markets m={data.markets} />
-      )}
-      <NextUp now={now} agenda={agenda} countdowns={data?.countdowns ?? []} />
-      {data?.verse && <Verse v={data.verse} />}
+      <div className="w-col w-col-tl">
+        <ClockWeather now={now} w={data?.weather ?? null} />
+        {data && <TodoList todos={data.todos ?? []} />}
+      </div>
+      <div className="w-col w-col-tr">
+        {down && !data ? (
+          <div className="w-block">
+            <div className="w-warn">WIDGET DATA UNAVAILABLE — BRIDGE NOT REACHABLE</div>
+          </div>
+        ) : (
+          data?.markets && <Markets m={data.markets} />
+        )}
+        {data && <ClipsWidget c={data.clips ?? null} />}
+      </div>
+      <div className="w-col w-col-bl">
+        <NextUp now={now} agenda={agenda} countdowns={data?.countdowns ?? []} />
+      </div>
+      <div className="w-col w-col-br">{data?.verse && <Verse v={data.verse} />}</div>
     </div>
   )
 }

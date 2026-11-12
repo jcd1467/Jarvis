@@ -162,7 +162,7 @@ export function decideTool(name, allowWrites = false, writeServers = []) {
     // without them JARVIS has no display at all. They also have to be named
     // here rather than left to the verb rules below, which read `ui_theme` as
     // a write and would hold the whole surface back behind allowWrites.
-    if (server === 'jarvis' || server === 'jarvis_ui') return true
+    if (server === 'jarvis' || server === 'jarvis_ui' || server === 'jarvis_lists') return true
 
     // The browser server gates itself, at construction: chromeServer() only
     // builds the acting tools — click, type, form input, close tab — when
