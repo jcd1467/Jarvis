@@ -1598,6 +1598,19 @@ wss.on('connection', (socket) => {
   const sendTurn = (msg) => send({ ...msg, ask: answering })
 
   /**
+   * Proof of life during a long turn. The page abandons a turn after two
+   * minutes without a single frame, and a turn where JARVIS has handed work to
+   * his team can spend several minutes in sub-agents that stream nothing back
+   * — so the page gave up ("the bridge went quiet") while the work carried on.
+   * Every 20 seconds while a turn is running, send a frame the page ignores
+   * but counts as alive.
+   */
+  let turnInFlight = false
+  const heartbeat = setInterval(() => {
+    if (turnInFlight) sendTurn({ type: 'working' })
+  }, 20_000)
+
+  /**
    * Asking the browser for something and waiting for the answer.
    *
    * Every other tool here pushes — a panel, a blade, a retint — and never needs
@@ -1931,6 +1944,7 @@ wss.on('connection', (socket) => {
               })
             }
             cancelledAsk = null
+            turnInFlight = false
             // Whatever was waiting on this turn to finish can go now. This is
             // the only place a turn is genuinely over.
             finishTurn?.()
@@ -2005,6 +2019,7 @@ wss.on('connection', (socket) => {
       const id = typeof msg.id === 'string' ? msg.id : null
       void settling.then(() => {
         answering = id
+        turnInFlight = true
         if (deliver) {
           const resolve = deliver
           deliver = null
@@ -2043,6 +2058,7 @@ wss.on('connection', (socket) => {
 
   socket.on('close', () => {
     console.log('[jarvis] client disconnected')
+    clearInterval(heartbeat)
     closed = true
     deliver?.(null)
     session.close?.()
