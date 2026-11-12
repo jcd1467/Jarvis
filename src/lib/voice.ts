@@ -365,6 +365,9 @@ export const diag = {
 
 /** Record why a transcript went nowhere. Silence always has a reason; this is
  *  the difference between debugging it and speculating about it. */
+/** True while consecutive transcriptions are failing, so the error shows once. */
+let sttFailing = false
+
 function drop(why: string) {
   diag.dropped = why
 }
@@ -460,8 +463,19 @@ async function startElevenVoice(h: VoiceHandlers): Promise<Voice> {
         diag.restarts++
         diag.lastError = `stt ${res.status}`
         drop(`transcription failed (${res.status})`)
+        // Loudly, and once per failure run: a transcriber that refuses every
+        // utterance otherwise looks exactly like JARVIS ignoring you.
+        if (!sttFailing) {
+          sttFailing = true
+          const why =
+            res.status === 401 || res.status === 402 || res.status === 429
+              ? 'ElevenLabs refused it — usually the free monthly credits have run out. Check your ElevenLabs account.'
+              : 'see the JARVIS - brain window for the reason.'
+          h.onError(`I can't hear you: voice transcription failed (${res.status}). ${why}`)
+        }
         return
       }
+      sttFailing = false
       const { text } = (await res.json()) as { text?: string }
       const said = (text ?? '').trim()
       diag.lastError = ''

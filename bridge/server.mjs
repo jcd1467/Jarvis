@@ -944,6 +944,30 @@ function corsFor(req) {
   return headers
 }
 
+/**
+ * Say in the terminal why ElevenLabs refused a request — at most once a minute
+ * per direction, so a run of failures is one line, not a flood. The detail is
+ * ElevenLabs' own error code (quota_exceeded, invalid_api_key …), never the key.
+ */
+const speechFailureAt = {}
+function logSpeechFailure(kind, status, body) {
+  const now = Date.now()
+  if (now - (speechFailureAt[kind] ?? 0) < 60_000) return
+  speechFailureAt[kind] = now
+  let reason = ''
+  try {
+    const d = JSON.parse(body)?.detail
+    reason = typeof d === 'string' ? d : [d?.status, d?.message].filter(Boolean).join(': ')
+  } catch {
+    reason = String(body ?? '').slice(0, 160)
+  }
+  const hint =
+    status === 401 || status === 402 || status === 429
+      ? ' — usually the ElevenLabs credits for this month have run out'
+      : ''
+  console.warn(`[jarvis] ElevenLabs ${kind} failed (${status})${reason ? `: ${reason}` : ''}${hint}`)
+}
+
 // One HTTP server for both the speech proxy and the WebSocket upgrade.
 const http = await import('node:http')
 
@@ -1185,8 +1209,10 @@ const handleRequest = async (req, res) => {
         },
       )
       if (!upstream.ok) {
+        const detail = await upstream.text()
+        logSpeechFailure('text-to-speech', upstream.status, detail)
         res.writeHead(upstream.status, cors)
-        return res.end(await upstream.text())
+        return res.end(detail)
       }
 
       // Pipe it through rather than buffering. Waiting for the whole file here
@@ -1269,8 +1295,10 @@ const handleRequest = async (req, res) => {
         body: form,
       })
       if (!upstream.ok) {
+        const detail = await upstream.text()
+        logSpeechFailure('speech-to-text', upstream.status, detail)
         res.writeHead(upstream.status, cors)
-        return res.end(await upstream.text())
+        return res.end(detail)
       }
       const data = await upstream.json()
       res.writeHead(200, { ...cors, 'content-type': 'application/json' })
