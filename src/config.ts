@@ -47,6 +47,19 @@ function flag(name: string, raw: unknown, fallback: boolean): boolean {
 }
 
 /**
+ * Lite mode, for low-power machines (a Celeron laptop driving two monitors).
+ * Fewer particles, no film-grain or colour-fringe passes, a cheaper glow,
+ * 30 frames a second instead of the display's full rate, and no rendering at
+ * all while the window is hidden or another window has focus.
+ *
+ * On with ?lite in the address (Start JARVIS.bat adds it when .env.local has
+ * JARVIS_LITE=1), or VITE_LITE=1 at build time.
+ */
+export const LITE =
+  (typeof location !== 'undefined' && new URLSearchParams(location.search).has('lite')) ||
+  flag('VITE_LITE', import.meta.env.VITE_LITE, false)
+
+/**
  * Which brain to use.
  *
  *   'bridge' — run `npm run bridge` alongside the app. Authenticates off your

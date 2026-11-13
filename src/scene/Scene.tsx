@@ -1,5 +1,6 @@
-import { useMemo } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
+import { useEffect, useMemo } from 'react'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { LITE } from '../config'
 import {
   EffectComposer,
   Bloom,
@@ -192,14 +193,49 @@ function Rig() {
   )
 }
 
+/** Lite mode's clock: 30 frames a second, and none while nobody can see it. */
+const LITE_FPS = 30
+
+/**
+ * Drives the canvas in lite mode, where it renders on demand. A plain
+ * interval, not requestAnimationFrame: the point is a fixed, low rate, and to
+ * stop entirely while the window is hidden or another window has focus — on a
+ * Celeron the reactor otherwise competes with typing and video on the other
+ * monitor for the same few cores.
+ */
+function LiteClock() {
+  const invalidate = useThree((s) => s.invalidate)
+  useEffect(() => {
+    let visible = !document.hidden && document.hasFocus()
+    const update = () => {
+      visible = !document.hidden && document.hasFocus()
+    }
+    document.addEventListener('visibilitychange', update)
+    window.addEventListener('focus', update)
+    window.addEventListener('blur', update)
+    const id = setInterval(() => {
+      if (visible) invalidate()
+    }, 1000 / LITE_FPS)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', update)
+      window.removeEventListener('focus', update)
+      window.removeEventListener('blur', update)
+    }
+  }, [invalidate])
+  return null
+}
+
 export function Scene() {
   return (
     <Canvas
       className="scene"
       camera={{ position: [0, 0, 6.2], fov: 45 }}
-      gl={{ antialias: true, alpha: true }}
-      dpr={[1, 2]}
+      gl={{ antialias: !LITE, alpha: true, powerPreference: LITE ? 'low-power' : 'default' }}
+      dpr={LITE ? 1 : [1, 2]}
+      frameloop={LITE ? 'demand' : 'always'}
     >
+      {LITE && <LiteClock />}
       <Rig />
       {/*
         multisampling={0} on purpose. The default is 8, which allocates a
@@ -216,6 +252,14 @@ export function Scene() {
         add a <ToneMapping mode={ToneMappingMode.ACES_FILMIC} /> effect at the
         end of this chain rather than touching the renderer.
       */}
+      {LITE ? (
+        // Lite: the glow alone, at half resolution. It is the one pass the
+        // look depends on; grain and colour fringing are garnish.
+        <EffectComposer multisampling={0}>
+          <Bloom intensity={1.0} luminanceThreshold={0.25} luminanceSmoothing={0.85} mipmapBlur radius={0.6} resolutionScale={0.5} />
+          <Vignette eskil={false} offset={0.22} darkness={0.95} />
+        </EffectComposer>
+      ) : (
       <EffectComposer multisampling={0}>
         {/* Bloom is what turns additive lines into "hologram". */}
         <Bloom
@@ -235,6 +279,7 @@ export function Scene() {
         <Noise opacity={0.035} blendFunction={BlendFunction.OVERLAY} />
         <Vignette eskil={false} offset={0.22} darkness={0.95} />
       </EffectComposer>
+      )}
     </Canvas>
   )
 }

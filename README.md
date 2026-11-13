@@ -127,8 +127,10 @@ JARVIS** icons on your desktop:
 powershell -ExecutionPolicy Bypass -File scripts\windows\install-shortcut.ps1
 ```
 
-**Start JARVIS** pulls the latest version, installs anything missing, opens the
-screen and the brain in two minimised windows, and opens the page in Chrome.
+**Start JARVIS** pulls the latest version, installs anything missing, builds
+the page when the code has changed, serves the finished build (lighter than the
+developer server), starts the brain, and opens the page in Chrome. On a
+low-power laptop, add `JARVIS_LITE=1` to `.env.local` for lite mode.
 **Stop JARVIS** closes both.
 
 ---

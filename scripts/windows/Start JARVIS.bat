@@ -8,6 +8,10 @@ setlocal
 cd /d "%~dp0..\.."
 title Starting JARVIS
 
+rem Lite mode for low-power PCs: JARVIS_LITE=1 in .env.local adds ?lite.
+set "Q="
+if exist ".env.local" findstr /b /c:"JARVIS_LITE=1" ".env.local" >nul && set "Q=?lite"
+
 rem Already running? Just open the page instead of starting a second copy.
 curl -s -o nul http://localhost:5173 && goto open
 
@@ -26,9 +30,29 @@ if not exist "node_modules\vite\package.json" (
   )
 )
 
+rem Serve the finished build rather than the developer server: far lighter in
+rem the browser, which matters on a low-power laptop. Rebuilt only when the
+rem code has changed since the last build (a new git commit).
+set "HEAD="
+for /f %%h in ('git rev-parse HEAD 2^>nul') do set "HEAD=%%h"
+set "BUILT="
+if exist "dist\.built" set /p BUILT=<"dist\.built"
+if not exist "dist\index.html" set "BUILT=none"
+if not "%HEAD%"=="%BUILT%" (
+  echo Preparing JARVIS after an update - this can take a minute...
+  call node node_modules\vite\bin\vite.js build --logLevel error
+  if errorlevel 1 (
+    echo.
+    echo Preparing JARVIS failed. The messages above say why.
+    pause
+    exit /b 1
+  )
+  >"dist\.built" echo %HEAD%
+)
+
 rem node directly rather than npm, which retitles the window and would hide it
 rem from "Stop JARVIS.bat".
-start "JARVIS - screen" /min cmd /k node node_modules\vite\bin\vite.js
+start "JARVIS - screen" /min cmd /k node node_modules\vite\bin\vite.js preview --port 5173 --strictPort
 start "JARVIS - brain" /min cmd /k node bridge\server.mjs
 
 echo Waiting for JARVIS to come up...
@@ -52,8 +76,8 @@ if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" set "CHROME=%Prog
 if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" set "CHROME=%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
 if exist "%LocalAppData%\Google\Chrome\Application\chrome.exe" set "CHROME=%LocalAppData%\Google\Chrome\Application\chrome.exe"
 if defined CHROME (
-  start "" "%CHROME%" http://localhost:5173
+  start "" "%CHROME%" "http://localhost:5173/%Q%"
 ) else (
-  start "" http://localhost:5173
+  start "" "http://localhost:5173/%Q%"
 )
 exit /b 0
