@@ -1542,6 +1542,12 @@ console.log(
  * What to tell the browser when a turn ends badly. Plain sentences, because
  * whatever reaches the client is liable to be spoken.
  */
+/**
+ * The longest any one turn may run before the bridge stops it and says so.
+ * Team runs are the slow case; a healthy one finishes in two to five minutes.
+ */
+const TURN_LIMIT_MS = Math.max(2, Number(process.env.JARVIS_TURN_LIMIT_MINUTES) || 10) * 60_000
+
 const RESULT_FAILURES = {
   error_during_execution: 'The turn failed part way through.',
   error_max_turns: 'The turn ran too long and was stopped.',
@@ -1606,9 +1612,28 @@ wss.on('connection', (socket) => {
    * but counts as alive.
    */
   let turnInFlight = false
+  let turnStartedAt = 0
   const heartbeat = setInterval(() => {
-    if (turnInFlight) sendTurn({ type: 'working' })
+    if (!turnInFlight) return
+    // The heartbeat keeps the page waiting, so the bridge has to be the one
+    // that gives up: a turn stuck in a sub-agent would otherwise spin forever.
+    if (Date.now() - turnStartedAt > TURN_LIMIT_MS) {
+      const minutes = Math.round(TURN_LIMIT_MS / 60_000)
+      console.warn(`[jarvis] turn stopped after ${minutes} minutes — too long, likely stuck`)
+      turnInFlight = false
+      sendTurn({
+        type: 'error',
+        message: `That took over ${minutes} minutes, so I stopped it. Ask again, or ask for less at once.`,
+      })
+      cancelledAsk = answering
+      settling = Promise.resolve(session.interrupt?.()).catch(() => {})
+      return
+    }
+    sendTurn({ type: 'working' })
   }, 20_000)
+
+  /** Sub-agents in flight this connection: tool_use id -> { type, at }. */
+  const teamRuns = new Map()
 
   /**
    * Asking the browser for something and waiting for the answer.
@@ -1893,9 +1918,20 @@ wss.on('connection', (socket) => {
             // Fallback for builds that emit whole assistant messages rather
             // than partial events. Deduped against the stream_event path.
             for (const block of msg.content ?? msg.message?.content ?? []) {
-              if (block.type === 'tool_use') {
-                announceTool(block.id, block.name)
+              if (block.type !== 'tool_use') continue
+              if (msg.parent_tool_use_id) {
+                // A sub-agent's own step: one short line, so a long team run
+                // shows it is moving.
+                const who = teamRuns.get(msg.parent_tool_use_id)?.type ?? 'agent'
+                console.log(`[jarvis] team · ${who}: ${String(block.name).replace(/^mcp__[^_]+(?:_[^_]+)*__/, '')}`)
+                continue
               }
+              if (block.name === 'Agent' || block.name === 'Task') {
+                const type = block.input?.subagent_type ?? 'agent'
+                teamRuns.set(block.id, { type, at: Date.now() })
+                console.log(`[jarvis] team: ${type} started`)
+              }
+              announceTool(block.id, block.name)
             }
             break
           }
@@ -1908,6 +1944,12 @@ wss.on('connection', (socket) => {
             if (!Array.isArray(blocks)) break
             for (const block of blocks) {
               if (block?.type === 'tool_result') {
+                const run = teamRuns.get(block.tool_use_id)
+                if (run) {
+                  teamRuns.delete(block.tool_use_id)
+                  const secs = Math.round((Date.now() - run.at) / 1000)
+                  console.log(`[jarvis] team: ${run.type} ${block.is_error ? 'failed' : 'finished'} in ${secs}s`)
+                }
                 settleTool(block.tool_use_id, block.is_error === true)
               }
             }
@@ -2020,6 +2062,7 @@ wss.on('connection', (socket) => {
       void settling.then(() => {
         answering = id
         turnInFlight = true
+        turnStartedAt = Date.now()
         if (deliver) {
           const resolve = deliver
           deliver = null
@@ -2059,6 +2102,7 @@ wss.on('connection', (socket) => {
   socket.on('close', () => {
     console.log('[jarvis] client disconnected')
     clearInterval(heartbeat)
+    turnInFlight = false
     closed = true
     deliver?.(null)
     session.close?.()

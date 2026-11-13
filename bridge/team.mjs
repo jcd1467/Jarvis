@@ -28,6 +28,9 @@ Ground rules, all absolute:
 - Today's date is in the task you were given; use it for "this week" and
   "latest".
 
+Be quick: a few well-chosen searches beat many. Stop as soon as you can
+answer well — JARVIS is waiting on you, and so is Jack.
+
 Report format: plain text, at most about 200 words. Lead with the answer.
 Short lines, one finding per line, each with its source in brackets. End with
 "Gaps:" listing anything you could not confirm.`
@@ -55,10 +58,11 @@ Your job: find paid clipping campaigns worth Jack's time.
 - Prefer gaming and streamer campaigns — GTA 6 launches November 19, 2026, and
   Jack wants streamers likely to play it.
 - Rank the best three by likely earnings for a beginner: decent rate, budget not
-  nearly spent, low minimums, rules a beginner can follow.`,
+  nearly spent, low minimums, rules a beginner can follow.
+- At most six searches or page reads. Stop once you have three solid options.`,
     disallowedTools: [...NO_ACCESS, 'mcp__claude_ai_Asana'],
     model: 'sonnet',
-    maxTurns: 14,
+    maxTurns: 9,
   },
 
   trends: {
@@ -74,7 +78,7 @@ gaming clips, GTA 6 above all around its November 19 launch).
 - Finish with three specific clip ideas he could make this week.`,
     disallowedTools: [...NO_ACCESS, 'mcp__claude_ai_Asana'],
     model: 'sonnet',
-    maxTurns: 12,
+    maxTurns: 8,
   },
 
   coach: {
@@ -93,7 +97,7 @@ Your job: a clip plan Jack can execute in free CapCut, and teaching as you go.
   moment himself.`,
     disallowedTools: [...NO_ACCESS, 'mcp__claude_ai_Asana'],
     model: 'sonnet',
-    maxTurns: 10,
+    maxTurns: 6,
   },
 
   copywriter: {
@@ -128,7 +132,7 @@ Your job: the real numbers, and what they mean.
   numbers are missing. Never estimate them.`,
     disallowedTools: [...NO_ACCESS],
     model: 'sonnet',
-    maxTurns: 16,
+    maxTurns: 12,
   },
 }
 
@@ -145,6 +149,12 @@ export const PROMPT_TEAM = `Your team — you are the chief of staff:
   back, and any names, links or campaigns involved. They see nothing else.
 - Run agents that do not depend on each other at the same time. When one needs
   another's output (coach after scout), run them in order.
+- Always wait for their reports in the same turn. Never run an agent in the
+  background — he would hear nothing.
+- Use the fewest agents the request needs; one is often enough.
+- Before handing work over, say one short line so the silence is explained —
+  "The scout is on it, sir. A minute or two." — then go quiet until you have
+  the answer.
 - Combine their reports into one answer: speak at most three sentences — the
   decision or next step first — and put the detail on one markup blade with a
   short section per agent. Keep their sources as tags. Add any concrete next
