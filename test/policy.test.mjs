@@ -145,3 +145,14 @@ test('only the built-ins JARVIS uses are offered', () => {
   }
   assert.ok(builtinTools(true).includes('Bash'))
 })
+
+test('chrome acting tools can be limited to named sites', async () => {
+  const { siteAllowed } = await import('../bridge/chrome.mjs')
+  const sites = ['vyro.com', 'whop.com']
+  assert.equal(siteAllowed('https://app.vyro.com/campaigns', sites), true)
+  assert.equal(siteAllowed('https://whop.com/discover', sites), true)
+  assert.equal(siteAllowed('https://evilvyro.com/', sites), false)
+  assert.equal(siteAllowed('https://vyro.com.evil.example/', sites), false)
+  assert.equal(siteAllowed('https://www.tiktok.com/', sites), false)
+  assert.equal(siteAllowed('not a url', sites), false)
+})

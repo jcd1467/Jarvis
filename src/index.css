@@ -2153,6 +2153,59 @@ kbd {
   text-overflow: ellipsis;
 }
 
+/* The clipping team, along the top between the wordmark and the status line. */
+.team-bar {
+  position: absolute;
+  top: 38px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 14%, transparent);
+  background: color-mix(in srgb, var(--accent) 4%, rgba(2, 10, 8, 0.55));
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+.team-title { font-size: 7.5px; letter-spacing: 0.3em; opacity: 0.5; padding: 0 4px; }
+.team-chip {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 3px 8px;
+  border-left: 1px solid color-mix(in srgb, var(--accent) 12%, transparent);
+  white-space: nowrap;
+}
+.team-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  align-self: center;
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.team-name { font-size: 8.5px; letter-spacing: 0.2em; opacity: 0.75; }
+.team-state {
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+  opacity: 0.5;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.team-on .team-dot {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.team-on .team-name { opacity: 1; color: #eafff6; }
+.team-on .team-state { opacity: 0.9; color: var(--accent); }
+
+@media (max-width: 1250px) {
+  .team-state { display: none; }
+  .team-on .team-state { display: inline; }
+}
+
 /* Not enough room around the reactor below this width: the widgets would sit
    on top of the blades and the log. */
 @media (max-width: 1000px), (max-height: 640px) {

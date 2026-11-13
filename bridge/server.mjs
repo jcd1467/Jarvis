@@ -39,7 +39,7 @@ import { openRemote, proxyError, upstreamMessage, vetTarget, PROXY_UA } from './
 import { widgetData } from './widgets.mjs'
 import { clipTotals, listsServer, toggleTodo, todosFor } from './lists.mjs'
 import { startShiftSync } from './shifts.mjs'
-import { PROMPT_TEAM, TEAM, dailyScoutTask } from './team.mjs'
+import { PROMPT_TEAM, TEAM, dailyAnalystTask, dailyScoutTask } from './team.mjs'
 import { lastReport, localDate, saveReport } from './lists.mjs'
 import { probeUrl, renderPage } from './page.mjs'
 import {
@@ -407,6 +407,9 @@ REPORTING.
 - Executing an order, do not restate it. Act, then report.
 
 NEVER.
+- Never introduce yourself or explain who or what you are. He has worked with
+  you for a long time; each conversation is simply the next one. If he opens
+  with a greeting, answer "Welcome back, sir." and, at most, one useful line.
 - No filler words at all: no um, well, so, okay, right, let me check, one moment.
 - No enthusiasm: no great, sure, absolutely, happy to, no problem, of course!.
 - No apology, no self-deprecation, no hedging about your own competence.
@@ -1473,61 +1476,111 @@ console.log(
  * can touch nothing but the web, and costs one research run a day.
  */
 const DAILY_SCOUT = process.env.JARVIS_DAILY_SCOUT === '1'
+const DAILY_ANALYST = process.env.JARVIS_DAILY_ANALYST === '1'
 let scoutRunning = false
+let analystRunning = false
 
-async function maybeRunDailyScout() {
-  if (!DAILY_SCOUT || scoutRunning) return
-  const today = localDate()
-  const hour = Number(
-    new Date().toLocaleString('en-US', { timeZone: process.env.JARVIS_TIMEZONE?.trim() || undefined, hour: '2-digit', hourCycle: 'h23' }),
-  )
-  if (hour < 6 || lastReport('scout')?.date === today) return
-  scoutRunning = true
-  console.log('[jarvis] daily scout: running')
+/**
+ * One unattended team run: a small session with the agent's own brief, the
+ * same policy hook, and only the tools that job needs. Reads through the
+ * user's Chrome when it is open (read-only unless sites are trusted, and the
+ * daily runs never click), saves its report, and shows on the team bar.
+ */
+async function runUnattended(agent, task, { chrome = false, lists = false, connectors = false } = {}) {
+  const def = TEAM[agent]
+  let text = ''
+  const servers = {}
+  if (chrome && !DISABLED.has('browser')) servers.jarvis_chrome = chromeServer({ allowWrites: false })
+  if (lists) servers.jarvis_lists = listsServer(() => broadcastWidgets())
+  setTeam(agent, { state: 'working', step: 'daily run', since: Date.now() })
+  console.log(`[jarvis] daily ${agent}: running`)
   try {
-    let text = ''
     const run = query({
-      prompt: dailyScoutTask(today),
+      prompt: task,
       options: {
-        systemPrompt: TEAM.scout.prompt,
-        tools: ['WebSearch', 'WebFetch'],
-        mcpServers: {},
-        strictMcpConfig: true,
+        systemPrompt: def.prompt,
+        tools: ['WebSearch', 'WebFetch', 'ToolSearch'],
+        mcpServers: servers,
+        strictMcpConfig: !(connectors && ACCOUNT_CONNECTORS),
         settingSources: [],
-        model: TEAM.scout.model,
-        effort: 'medium',
-        maxTurns: TEAM.scout.maxTurns,
+        model: def.model,
+        effort: 'low',
+        maxTurns: def.maxTurns,
         cwd: WORKSPACE,
         persistSession: false,
+        disallowedTools: [
+          ...def.disallowedTools.filter((d) => !(lists && d === 'mcp__jarvis_lists')),
+          ...SKIP_CONNECTORS.map((c) => `mcp__claude_ai_${c}`),
+        ],
         hooks: { PreToolUse: [{ hooks: [enforcePolicy] }] },
         canUseTool: async (name) =>
-          name === 'WebSearch' || name === 'WebFetch'
+          decideTool(name) && !/chrome_(click|type|key|form_input)/.test(name)
             ? { behavior: 'allow' }
-            : { behavior: 'deny', message: 'Not available in the daily scout run.' },
+            : { behavior: 'deny', message: 'Not available in an unattended run.' },
         ...(process.env.JARVIS_CLAUDE_EXECUTABLE
           ? { pathToClaudeCodeExecutable: process.env.JARVIS_CLAUDE_EXECUTABLE }
           : {}),
       },
     })
     for await (const msg of run) {
+      if (msg.type === 'assistant') {
+        for (const block of msg.message?.content ?? []) {
+          if (block.type === 'tool_use') setTeam(agent, { step: `daily run · ${stepWord(block.name)}` })
+        }
+      }
       if (msg.type === 'result') text = msg.subtype === 'success' ? String(msg.result ?? '') : ''
     }
     if (text.trim()) {
-      saveReport('scout', text.trim())
-      console.log('[jarvis] daily scout: report saved for the morning brief')
+      saveReport(agent, text.trim())
+      console.log(`[jarvis] daily ${agent}: report saved`)
+      setTeam(agent, { state: 'idle', step: '', last: 'daily run done' })
     } else {
-      console.warn('[jarvis] daily scout: finished without a report')
+      console.warn(`[jarvis] daily ${agent}: finished without a report`)
+      setTeam(agent, { state: 'idle', step: '', last: 'daily run failed' })
     }
   } catch (err) {
-    console.warn(`[jarvis] daily scout: failed (${err?.message ?? err})`)
-  } finally {
-    scoutRunning = false
+    console.warn(`[jarvis] daily ${agent}: failed (${err?.message ?? err})`)
+    setTeam(agent, { state: 'idle', step: '', last: 'daily run failed' })
   }
 }
-if (DAILY_SCOUT) {
-  console.log('[jarvis] daily scout on — runs once a day after 6 AM')
-  setTimeout(() => void maybeRunDailyScout(), 20_000)
-  setInterval(() => void maybeRunDailyScout(), 30 * 60_000).unref?.()
+
+/** Ask every open page to refresh its widgets (to-do list, clip totals). */
+function broadcastWidgets() {
+  const msg = JSON.stringify({ type: 'ui', op: 'widgets', args: {} })
+  for (const s of uiClients) if (s.readyState === s.OPEN) s.send(msg)
+}
+
+function localHour() {
+  return Number(
+    new Date().toLocaleString('en-US', { timeZone: process.env.JARVIS_TIMEZONE?.trim() || undefined, hour: '2-digit', hourCycle: 'h23' }),
+  )
+}
+
+async function maybeRunDaily() {
+  const today = localDate()
+  if (localHour() < 6) return
+  if (DAILY_SCOUT && !scoutRunning && lastReport('scout')?.date !== today) {
+    scoutRunning = true
+    try {
+      await runUnattended('scout', dailyScoutTask(today), { chrome: true })
+    } finally {
+      scoutRunning = false
+    }
+  }
+  if (DAILY_ANALYST && !analystRunning && lastReport('analyst')?.date !== today) {
+    analystRunning = true
+    try {
+      await runUnattended('analyst', dailyAnalystTask(today), { chrome: true, lists: true, connectors: true })
+    } finally {
+      analystRunning = false
+    }
+  }
+}
+if (DAILY_SCOUT || DAILY_ANALYST) {
+  const which = [DAILY_SCOUT && 'scout', DAILY_ANALYST && 'analyst'].filter(Boolean).join(' and ')
+  console.log(`[jarvis] daily ${which} on — once a day after 6 AM`)
+  setTimeout(() => void maybeRunDaily(), 20_000)
+  setInterval(() => void maybeRunDaily(), 30 * 60_000).unref?.()
 }
 
 // Work shifts from a calendar feed onto the to-do list, on a timer — runs
@@ -1560,7 +1613,7 @@ if (DISABLED.size) console.log(`[jarvis] disabled: ${[...DISABLED].join(', ')}`)
 if (!DISABLED.has('browser')) void chromeAvailable().then((ok) => {
   console.log(
     ok
-      ? `[jarvis] browser control ready${ALLOW_WRITES ? '' : ' (reading only — clicking and typing need JARVIS_ALLOW_WRITES=1)'}`
+      ? `[jarvis] browser control ready${ALLOW_WRITES ? '' : CHROME_WRITE_SITES.length ? ` (clicking and typing only on ${CHROME_WRITE_SITES.join(', ')})` : ' (reading only — clicking and typing need JARVIS_ALLOW_WRITES=1)'}`
       : '[jarvis] browser control unavailable — open Chrome with the Claude extension enabled',
   )
 })
@@ -1581,6 +1634,52 @@ console.log(
  */
 const TURN_LIMIT_MS = Math.max(2, Number(process.env.JARVIS_TURN_LIMIT_MINUTES) || 10) * 60_000
 
+/**
+ * Sites where JARVIS may click and type in Chrome even with writes off —
+ * joining campaigns and submitting links on the clipping marketplaces.
+ * JARVIS_CHROME_WRITE_SITES, comma separated, e.g. vyro.com,whop.com.
+ */
+const CHROME_WRITE_SITES = (process.env.JARVIS_CHROME_WRITE_SITES ?? '')
+  .split(',')
+  .map((s) => s.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, ''))
+  .filter(Boolean)
+
+// ---------------------------------------------------------------------------
+// The team's status, for the bar on screen
+// ---------------------------------------------------------------------------
+
+/** Every page that is open, so a team change reaches all of them. */
+const uiClients = new Set()
+
+/** What each agent is doing: { state: 'working' | 'idle', step, since, last }. */
+const teamState = Object.fromEntries(
+  Object.keys(TEAM).map((name) => [name, { state: 'idle', step: '', since: 0, last: '' }]),
+)
+
+/** A tool name, as a word for the status bar. */
+function stepWord(name) {
+  const n = String(name ?? '')
+  if (n === 'WebSearch') return 'searching the web'
+  if (n === 'WebFetch') return 'reading a page'
+  if (n === 'ToolSearch') return 'getting ready'
+  if (/chrome_(navigate|read_page|page_text|find|screenshot|scroll)/.test(n)) return 'browsing'
+  if (/chrome_(click|type|key|form_input)/.test(n)) return 'filling in a page'
+  if (/Asana/i.test(n)) return 'updating the tracker'
+  if (/clips_record/.test(n)) return 'saving totals'
+  return 'working'
+}
+
+function broadcastTeam() {
+  const msg = JSON.stringify({ type: 'ui', op: 'team', args: { team: teamState } })
+  for (const s of uiClients) if (s.readyState === s.OPEN) s.send(msg)
+}
+
+function setTeam(agent, patch) {
+  if (!teamState[agent]) return
+  Object.assign(teamState[agent], patch)
+  broadcastTeam()
+}
+
 const RESULT_FAILURES = {
   error_during_execution: 'The turn failed part way through.',
   error_max_turns: 'The turn ran too long and was stopped.',
@@ -1591,6 +1690,8 @@ const RESULT_FAILURES = {
 
 wss.on('connection', (socket) => {
   console.log('[jarvis] client connected')
+  uiClients.add(socket)
+  socket.send(JSON.stringify({ type: 'ui', op: 'team', args: { team: teamState } }))
 
   // Answer the HUD straight away rather than making it wait for the agent's
   // first turn. Refined later by the real init message.
@@ -1654,6 +1755,8 @@ wss.on('connection', (socket) => {
       const minutes = Math.round(TURN_LIMIT_MS / 60_000)
       console.warn(`[jarvis] turn stopped after ${minutes} minutes — too long, likely stuck`)
       turnInFlight = false
+      for (const run of teamRuns.values()) setTeam(run.type, { state: 'idle', step: '', last: 'stopped' })
+      teamRuns.clear()
       sendTurn({
         type: 'error',
         message: `That took over ${minutes} minutes, so I stopped it. Ask again, or ask for less at once.`,
@@ -1814,7 +1917,7 @@ wss.on('connection', (socket) => {
         // the write gate is read once, at the same point as everything else.
         ...(DISABLED.has('browser')
           ? {}
-          : { jarvis_chrome: chromeServer({ allowWrites: ALLOW_WRITES }) }),
+          : { jarvis_chrome: chromeServer({ allowWrites: ALLOW_WRITES, writeSites: CHROME_WRITE_SITES }) }),
         // The camera, which unlike everything else here has to ask and wait.
         ...(DISABLED.has('camera') ? {} : { jarvis_eyes: visionServer(ask) }),
       },
@@ -1957,12 +2060,14 @@ wss.on('connection', (socket) => {
                 // shows it is moving.
                 const who = teamRuns.get(msg.parent_tool_use_id)?.type ?? 'agent'
                 console.log(`[jarvis] team · ${who}: ${String(block.name).replace(/^mcp__[^_]+(?:_[^_]+)*__/, '')}`)
+                setTeam(who, { step: stepWord(block.name) })
                 continue
               }
               if (block.name === 'Agent' || block.name === 'Task') {
                 const type = block.input?.subagent_type ?? 'agent'
                 teamRuns.set(block.id, { type, at: Date.now() })
                 console.log(`[jarvis] team: ${type} started`)
+                setTeam(type, { state: 'working', step: 'starting', since: Date.now() })
               }
               announceTool(block.id, block.name)
             }
@@ -1982,6 +2087,7 @@ wss.on('connection', (socket) => {
                   teamRuns.delete(block.tool_use_id)
                   const secs = Math.round((Date.now() - run.at) / 1000)
                   console.log(`[jarvis] team: ${run.type} ${block.is_error ? 'failed' : 'finished'} in ${secs}s`)
+                  setTeam(run.type, { state: 'idle', step: '', last: `${block.is_error ? 'failed' : 'done'} ${secs}s` })
                 }
                 settleTool(block.tool_use_id, block.is_error === true)
               }
@@ -2134,8 +2240,12 @@ wss.on('connection', (socket) => {
 
   socket.on('close', () => {
     console.log('[jarvis] client disconnected')
+    uiClients.delete(socket)
     clearInterval(heartbeat)
     turnInFlight = false
+    // Anything this page had running stops with it.
+    for (const run of teamRuns.values()) setTeam(run.type, { state: 'idle', step: '', last: 'stopped' })
+    teamRuns.clear()
     closed = true
     deliver?.(null)
     session.close?.()

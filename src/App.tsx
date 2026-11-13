@@ -4,7 +4,7 @@ import { Hud } from './ui/Hud'
 import { Boot } from './ui/Boot'
 import { Ignition } from './ui/Ignition'
 import { Diagnostics } from './ui/Diagnostics'
-import { useStore, type Agenda } from './store'
+import { useStore, type Agenda, type TeamMember } from './store'
 import { WIDGETS_REFRESH } from './ui/Widgets'
 import { startVoice, type Voice, type VoiceMode } from './lib/voice'
 import { createSpeaker, cycleVoice, currentVoiceName } from './lib/tts'
@@ -452,6 +452,9 @@ export default function App() {
         case 'widgets':
           window.dispatchEvent(new Event(WIDGETS_REFRESH))
           break
+        case 'team':
+          s.setTeam((args as { team?: Record<string, TeamMember> }).team ?? {})
+          break
         default:
           console.warn('[jarvis] unknown ui op:', op, args)
       }
@@ -534,6 +537,13 @@ export default function App() {
     })
 
     store.getState().setPhase('dormant')
+
+    // He knows who JARVIS is. A short welcome on start-up instead of nothing —
+    // and the persona is told never to introduce himself either.
+    const welcome = createSpeaker()
+    speaker.current = welcome
+    welcome.say('Welcome back, sir.')
+    void welcome.end()
   }
 
   // -- clap to start --------------------------------------------------------

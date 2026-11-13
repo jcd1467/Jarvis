@@ -52,6 +52,9 @@ export type Blade = {
   hold: 'turn' | 'sticky'
 }
 
+/** One agent on the team bar, as the bridge reports it. */
+export type TeamMember = { state: 'working' | 'idle'; step: string; since: number; last: string }
+
 /** One day's timeline, pushed by the ui_agenda tool. Times are local HH:MM. */
 export type Agenda = {
   date: string
@@ -249,6 +252,8 @@ type State = {
   ui: UiState
   /** The day's timed items for the "Next up" widget, as JARVIS last set them. */
   agenda: Agenda | null
+  /** The clipping team's status, pushed by the bridge. */
+  team: Record<string, TeamMember>
 
   setVoice: (v: string) => void
   setGestures: (on: boolean) => void
@@ -277,6 +282,7 @@ type State = {
   fireEffect: (kind: UiEffect['kind']) => void
   resetUi: () => void
   setAgenda: (a: Agenda | null) => void
+  setTeam: (t: Record<string, TeamMember>) => void
   clearScreen: (what: 'all' | 'panels' | 'transcript') => void
 }
 
@@ -298,8 +304,10 @@ export const useStore = create<State>((set) => ({
   bootNote: '',
   ui: defaultUi(),
   agenda: null,
+  team: {},
 
   setAgenda: (agenda) => set({ agenda }),
+  setTeam: (team) => set({ team: { ...team } }),
   setVoice: (voice) => set({ voice }),
   setGestures: (gestures) => set({ gestures }),
   setLooking: (looking) => set({ looking }),

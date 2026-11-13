@@ -117,6 +117,10 @@ it" or ask for clipping work that needs research. None of them can post, edit
 video, touch mail or the calendar, or draw on screen; only the analyst may
 update Asana. `JARVIS_DAILY_SCOUT=1` runs the scout once a day by itself and
 puts its report in the morning brief.
+`JARVIS_DAILY_ANALYST=1` does the same for the analyst (numbers into the Clip
+Tracker and the CLIPS widget). `JARVIS_CHROME_WRITE_SITES=vyro.com,whop.com`
+lets JARVIS join campaigns and submit links on those sites only, asking before
+each click. A TEAM bar along the top shows what each agent is doing.
 
 ### Windows: one-click start
 

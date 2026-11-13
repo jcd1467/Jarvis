@@ -685,10 +685,64 @@ acting on a page, and the reliable way to find out what is actually on it.
 Prefer this over a screenshot when you want to know what a page says or what can
 be clicked. Use chrome_page_text instead when you only want the prose.`
 
+/** The address of a tab, read the same way settle() does. Null if unknown. */
+async function tabUrl(tab) {
+  try {
+    const reply = await link.call('get_page_text', { tabId: tab, max_chars: 200 })
+    const blocks = reply?.result?.content
+    const text = Array.isArray(blocks)
+      ? blocks.map((b) => (typeof b?.text === 'string' ? b.text : '')).join('\n')
+      : ''
+    return /^URL:\s*(\S+)/m.exec(text)?.[1] ?? null
+  } catch {
+    return null
+  }
+}
+
+/** Whether a URL's host is one of the sites, or a subdomain of one. */
+export function siteAllowed(url, sites) {
+  let host
+  try {
+    host = new URL(url).hostname.toLowerCase()
+  } catch {
+    return false
+  }
+  return sites.some((s) => host === s || host.endsWith(`.${s}`))
+}
+
 /**
- * @param {{ allowWrites: boolean }} options
+ * Wrap an acting tool so it only works on the named sites. The page is
+ * checked at the moment of acting, not when the tool was chosen, so a click
+ * that would land after a redirect to another site is refused there.
  */
-export function chromeServer({ allowWrites }) {
+function onSitesOnly(sites, handler) {
+  return async (args) => {
+    const tab = await resolveTab(args?.tabId)
+    const url = tab === null ? null : await tabUrl(tab)
+    if (!url || !siteAllowed(url, sites)) {
+      return {
+        isError: true,
+        content: [
+          {
+            type: 'text',
+            text:
+              `Blocked: clicking and typing are only allowed on ${sites.join(', ')}` +
+              (url ? `, and this page is ${new URL(url).hostname}` : '') +
+              '. Tell the user to do this step themselves.',
+          },
+        ],
+      }
+    }
+    return handler({ ...args, tabId: tab })
+  }
+}
+
+/**
+ * @param {{ allowWrites: boolean, writeSites?: string[] }} options
+ *   writeSites: hosts where clicking and typing are allowed even with writes
+ *   off — JARVIS_CHROME_WRITE_SITES, e.g. vyro.com and whop.com.
+ */
+export function chromeServer({ allowWrites, writeSites = [] }) {
   const tools = [
     tool(
       'chrome_status',
@@ -932,6 +986,40 @@ export function chromeServer({ allowWrites }) {
           if (Number(args.tabId) === activeTab) activeTab = null
           return out
         },
+      ),
+    )
+  }
+
+  // Writes off, but some sites trusted: the acting tools exist, each one
+  // refusing to touch any page that is not on those sites.
+  if (!allowWrites && writeSites.length) {
+    const scoped = (name, desc, schema, handler) =>
+      tool(name, `${desc} Only works on ${writeSites.join(', ')}.`, schema, onSitesOnly(writeSites, handler))
+    tools.push(
+      scoped(
+        'chrome_click',
+        'Click something on the page. Take the ref from chrome_read_page or chrome_find. Ask the user before every click that joins, submits or agrees to anything.',
+        {
+          ref: z.string().optional().catch(undefined).describe('A ref_N from chrome_read_page.'),
+          coordinate: z.array(z.number()).optional().catch(undefined).describe('[x, y] fallback when there is no ref.'),
+          tabId,
+        },
+        (args) => forward('computer')({ action: 'left_click', ...args }),
+      ),
+      scoped('chrome_type', 'Type text into whatever is focused. Click the field first.', { text: z.string(), tabId }, (args) =>
+        forward('computer')({ action: 'type', ...args }),
+      ),
+      scoped(
+        'chrome_key',
+        'Press a key or chord, e.g. "Return".',
+        { text: z.string().describe('The key to press.'), tabId },
+        (args) => forward('computer')({ action: 'key', ...args }),
+      ),
+      scoped(
+        'chrome_form_input',
+        'Set the value of a form field directly.',
+        { ref: z.string().describe('A ref_N from chrome_read_page.'), value: z.union([z.string(), z.number(), z.boolean()]), tabId },
+        forward('form_input'),
       ),
     )
   }

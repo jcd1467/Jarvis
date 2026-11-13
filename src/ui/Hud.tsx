@@ -7,6 +7,7 @@ import { Effects } from './Effects'
 import { Pointer } from './Pointer'
 import { GestureGuide } from './GestureGuide'
 import { Widgets } from './Widgets'
+import { TeamBar } from './TeamBar'
 
 const statusText: Record<Phase, string> = {
   offline: 'OFFLINE',
@@ -229,6 +230,7 @@ export function Hud() {
       )}
 
       <Widgets />
+      <TeamBar />
 
       {/* Right rail: live telemetry, mostly for flavour */}
       <aside className="rail rail-right">
