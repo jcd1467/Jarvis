@@ -754,7 +754,10 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
           // has already had a pass at; here the evidence is a transcript of
           // audio that includes his own playback, and one word of that is not
           // evidence of anything.
-          if (words < 2) return
+          // Three in this engine: it hears his playback through the speakers,
+          // and two stray words of that were enough to cut him off mid-sentence.
+          // "Stop", Space and Esc still interrupt at once.
+          if (words < 3) return
         }
       }
       started = true

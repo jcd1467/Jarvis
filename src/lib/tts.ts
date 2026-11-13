@@ -46,12 +46,17 @@ type Speaker = {
 // ---------------------------------------------------------------------------
 
 let speaking = ''
-let recent = ''
-let recentUntil = 0
+/** Sentences that finished recently, each with when it stops counting. */
+let recent: { text: string; until: number }[] = []
 
-/** Recognition lags the speakers by a few hundred milliseconds, so a sentence
- *  keeps arriving at the microphone well after it has finished playing. */
-const ECHO_TAIL_MS = 1800
+/** Recognition lags the speakers, so a sentence keeps arriving at the
+ *  microphone after it has finished playing. Chrome's own recogniser — the
+ *  hybrid-mode listener — lags by seconds, not milliseconds, and often
+ *  delivers the previous sentence while the next is playing. With only the
+ *  last sentence remembered for under two seconds, that lagging echo read as
+ *  the user interrupting, and he stopped mid-sentence. */
+const ECHO_TAIL_MS = 7000
+const ECHO_SENTENCES = 4
 
 /**
  * Why you cannot hear him.
@@ -118,8 +123,7 @@ function setSpeaking(text: string) {
     return
   }
   if (speaking) {
-    recent = speaking
-    recentUntil = Date.now() + ECHO_TAIL_MS
+    recent = [...recent, { text: speaking, until: Date.now() + ECHO_TAIL_MS }].slice(-ECHO_SENTENCES)
   }
   speaking = ''
 }
@@ -134,8 +138,9 @@ function setSpeaking(text: string) {
  * one lands. See `isEcho` in voice.ts.
  */
 export function speakingNow(): string {
-  const tail = Date.now() < recentUntil ? recent : ''
-  return `${speaking} ${tail}`.trim()
+  const now = Date.now()
+  recent = recent.filter((r) => r.until > now)
+  return [speaking, ...recent.map((r) => r.text)].join(' ').trim()
 }
 
 // ---------------------------------------------------------------------------
@@ -180,6 +185,10 @@ function score(v: SpeechSynthesisVoice): number {
   // The macOS British male, and the closest thing to the character available
   // without leaving the machine.
   if (n.startsWith('daniel')) s += 100
+  // Windows' own British male voices run on the machine, so they never stall
+  // on the network. George ships with the English (United Kingdom) speech
+  // pack; Ryan is the natural-sounding one where it is offered.
+  else if (/microsoft (ryan|george|thomas|oliver)/.test(n)) s += 90
   else if (n.includes('google uk english male')) s += 85
   else if (/\b(oliver|arthur|jamie|malcolm)\b/.test(n)) s += 80
   // Newer macOS en-GB male voices — casual, but serviceable.
@@ -191,6 +200,11 @@ function score(v: SpeechSynthesisVoice): number {
 
   if (/en[-_]gb/i.test(v.lang)) s += 25
   else if (/^en/i.test(v.lang)) s += 5
+
+  // Streamed voices (Google's in Chrome) stutter on a slow connection and cut
+  // long sentences off; a voice on the machine does neither. Enough of a
+  // preference to beat a streamed voice of the same kind, not a better one.
+  if (v.localService) s += 10
 
   // Voices that clearly aren't a butler.
   if (/grandma|grandpa|bubbles|jester|bells|boing|whisper|zarvox|superstar|trinoids|wobble|bahh|organ|cellos|bad news|good news/.test(n)) {
@@ -528,11 +542,16 @@ export function createSpeaker(): Speaker {
         // Chrome stops speaking after roughly fifteen seconds unless the engine
         // is nudged. A pause/resume pair is the standard keepalive and is
         // inaudible; without it long answers cut off mid-sentence.
-        keepalive = setInterval(() => {
-          if (done) return
-          speechSynthesis.pause()
-          speechSynthesis.resume()
-        }, 5000)
+        // Only streamed voices have the fifteen-second cut-off, and on them the
+        // pause/resume is itself an audible hiccup on a slow line — so it runs
+        // only for those, and only once a sentence is long enough to need it.
+        if (u.voice && !u.voice.localService && text.length > 160) {
+          keepalive = setInterval(() => {
+            if (done) return
+            speechSynthesis.pause()
+            speechSynthesis.resume()
+          }, 10000)
+        }
       }
       u.onend = finish
       // Swallowing this was a mistake. When the OS voice fails there is no
