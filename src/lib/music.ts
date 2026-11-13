@@ -47,9 +47,10 @@ let enabled = false
 /** Resting levels. Music sits well under the voice — it is atmosphere, not a
  *  soundtrack, and JARVIS has to stay intelligible over it. */
 const LEVEL: Record<Cue, number> = {
-  // The boot cue is the JARVIS start-up sound itself, not background swell, so
-  // it sits forward — it is meant to be heard as the reactor comes up, the way
-  // the film plays it. The ambient bed underneath stays a whisper.
+  // The boot cue is the start-up sound itself — a wordless power-up hum and
+  // chime, generated for this project — so it sits forward as the reactor comes
+  // up. The spoken greeting follows it in App.tsx. The ambient bed underneath
+  // stays a whisper.
   'boot-music': 0.85,
   /**
    * Under the intro, not alongside it.

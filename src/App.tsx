@@ -538,11 +538,12 @@ export default function App() {
 
     store.getState().setPhase('dormant')
 
-    // He knows who JARVIS is. A short welcome on start-up instead of nothing —
-    // and the persona is told never to introduce himself either.
+    // He knows who JARVIS is: one line as the systems come up, no introduction.
+    // The start-up sound used to carry a spoken introduction of its own; it is
+    // now a wordless power-up, so this is the only thing said.
     const welcome = createSpeaker()
     speaker.current = welcome
-    welcome.say('Welcome back, sir.')
+    welcome.say('All systems online. Welcome back, sir.')
     void welcome.end()
   }
 
