@@ -762,7 +762,31 @@ const LISTEN = (process.env.JARVIS_LISTEN ?? 'elevenlabs').trim().toLowerCase()
  * next check after the reset brings the real voice back with no edit needed.
  * A key without permission to read its subscription simply skips the check.
  */
-const eleven = { exhausted: false, checked: false }
+const eleven = { exhausted: false, checked: false, retryAt: 0 }
+
+/**
+ * Learn from a refusal. A key without permission to read its own balance
+ * leaves the check above blind, and then every sentence tried ElevenLabs,
+ * failed on quota and fell back — slow, and a wasted request each time. A
+ * quota refusal now marks the voice exhausted for six hours; after that one
+ * request is let through again, and a success clears the mark. The page
+ * picks up the change the next time it loads (F5 or a restart).
+ */
+function noteQuotaRefusal(body) {
+  if (!/quota_exceeded|exceeds your quota/i.test(String(body ?? ''))) return
+  if (!eleven.exhausted) {
+    console.log('[jarvis] ElevenLabs is out of credits — using the browser voice. Reload the page to switch now.')
+  }
+  eleven.exhausted = true
+  eleven.retryAt = Date.now() + 6 * 60 * 60_000
+}
+const elevenAvailable = () => {
+  if (eleven.exhausted && eleven.retryAt && Date.now() > eleven.retryAt) {
+    eleven.exhausted = false // one more try; a refusal sets it again
+    eleven.retryAt = 0
+  }
+  return !eleven.exhausted
+}
 
 async function checkElevenCredits() {
   const key = elevenKey()
@@ -785,6 +809,7 @@ async function checkElevenCredits() {
     if (!Number.isFinite(used) || !Number.isFinite(limit) || limit <= 0) return
     const was = eleven.exhausted
     eleven.exhausted = used >= limit
+    eleven.retryAt = 0
     const resetText = Number.isFinite(reset) && reset > 0
       ? new Date(reset * 1000).toLocaleString('en-US', {
           timeZone: process.env.JARVIS_TIMEZONE?.trim() || undefined,
@@ -1015,6 +1040,7 @@ function corsFor(req) {
  */
 const speechFailureAt = {}
 function logSpeechFailure(kind, status, body) {
+  noteQuotaRefusal(body)
   const now = Date.now()
   if (now - (speechFailureAt[kind] ?? 0) < 60_000) return
   speechFailureAt[kind] = now
@@ -1060,7 +1086,7 @@ const handleRequest = async (req, res) => {
     // with a key the app transcribes with Scribe and speaks with ElevenLabs;
     // without one it falls back to the browser's own recogniser and voice, so a
     // student with nothing configured still has a working assistant.
-    const voice = Boolean(elevenKey()) && !eleven.exhausted
+    const voice = Boolean(elevenKey()) && elevenAvailable()
     res.writeHead(200, { ...cors, 'content-type': 'application/json' })
     return res.end(JSON.stringify({ ok: true, tts: voice, stt: voice && LISTEN !== 'browser' }))
   }
@@ -1219,6 +1245,13 @@ const handleRequest = async (req, res) => {
     if (!key) {
       res.writeHead(503, cors)
       return res.end('no elevenlabs key')
+    }
+    // Known to be out of credits: answer at once, so the page falls back to
+    // its own voice without first waiting on a refusal from ElevenLabs.
+    if (!elevenAvailable()) {
+      req.resume()
+      res.writeHead(503, cors)
+      return res.end('elevenlabs out of credits')
     }
     // A spoken line is a few hundred bytes. Anything approaching this is not a
     // sentence, and buffering it unbounded would let one request eat the heap.
