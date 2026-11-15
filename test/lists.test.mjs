@@ -51,3 +51,10 @@ test('team reports are saved and read back', async () => {
   const report = listTools().find((t) => t.name === 'team_report')
   assert.match((await report.handler({}, {})).content[0].text, /today/)
 })
+
+test('pages are remembered and looked up', async () => {
+  const t = Object.fromEntries(listTools().map((x) => [x.name, x.handler]))
+  assert.match((await t.page_remember({ name: 'TikTok Studio content', url: 'https://www.tiktok.com/tiktokstudio/content' }, {})).content[0].text, /Remembered/)
+  assert.match((await t.page_remember({ name: 'bad', url: 'javascript:alert(1)' }, {})).content[0].text, /Not saved/)
+  assert.match((await t.page_lookup({ name: 'tiktok' }, {})).content[0].text, /tiktokstudio/)
+})

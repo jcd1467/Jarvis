@@ -475,7 +475,22 @@ const PROMPT_INTERFACE = `The interface itself:
 
 `
 const PROMPT_BROWSER = `Their browser — the \`chrome_*\` tools, first, for anything to do with a
-browser or a web page that no connected service already covers:
+browser or a web page that no connected service already covers.
+
+Speed comes first — his laptop is slow, and every page read takes time:
+- Go STRAIGHT to an address. Check page_lookup (and the campaign's saved link)
+  first; open that address with chrome_navigate, then read it once. Never find
+  a page by clicking through menus if any address for it is known.
+- Read with chrome_page_text (fast). Use chrome_read_page only when you must
+  click something; avoid screenshots unless the page has no text.
+- The first time you reach a page he will want again, save it with
+  page_remember.
+- If a page shows a login screen, a permission prompt or a "not allowed"
+  message, stop at once and tell him in one sentence what to approve or sign
+  in to. Do not retry it in a loop.
+- Three page reads should be enough for most requests. If it is taking more,
+  stop and say what you found so far.
+
 - Connected services come BEFORE the browser. If a tool exists for their mail
   (Outlook, Gmail), calendar, tasks (Asana) or files, use it — it is faster,
   and it works when Chrome is closed. Only fall back to the browser when no

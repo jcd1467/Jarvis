@@ -34,14 +34,18 @@ export function localDate(d = new Date()) {
 function load() {
   try {
     const s = JSON.parse(readFileSync(PATH, 'utf8'))
+    // Everything in the file is kept — a section this function does not know
+    // about (yet) must survive a save, not vanish on the next write.
     return {
+      ...s,
       todos: Array.isArray(s.todos) ? s.todos : [],
       clips: s.clips ?? null,
       reports: s.reports ?? {},
       campaigns: Array.isArray(s.campaigns) ? s.campaigns : [],
+      pages: s.pages && typeof s.pages === 'object' ? s.pages : {},
     }
   } catch {
-    return { todos: [], clips: null, reports: {}, campaigns: [] }
+    return { todos: [], clips: null, reports: {}, campaigns: [], pages: {} }
   }
 }
 
@@ -312,5 +316,37 @@ export function listTools(changed = () => {}) {
       ),
     // Campaign rules and the caption check: bridge/campaigns.mjs.
     ...campaignTools({ load, save }),
+
+    tool(
+      'page_remember',
+      "Save the exact address of a page you reached and read successfully in his Chrome — his TikTok Studio content list, his Ssemble projects, a dashboard — under a short name, so next time you open it directly in one step. Only addresses you actually reached, copied exactly.",
+      {
+        name: z.string().describe('Short name, e.g. "tiktok studio content", "ssemble projects".'),
+        url: z.string().describe('The exact https address.'),
+      },
+      async (args) => {
+        const name = String(args.name ?? '').trim().toLowerCase()
+        const url = String(args.url ?? '').trim()
+        if (!name || !/^https:\/\//i.test(url)) return ok('Not saved — needs a name and an https address.')
+        const state = load()
+        state.pages = { ...(state.pages ?? {}), [name]: { url, at: new Date().toISOString() } }
+        save(state)
+        return ok(`Remembered "${name}": ${url}`)
+      },
+    ),
+    tool(
+      'page_lookup',
+      'The saved address for a page by name or words from it; with no name, every saved page. Check this BEFORE opening anything in Chrome, and go straight to the saved address.',
+      { name: z.string().optional() },
+      async (args) => {
+        const pages = load().pages ?? {}
+        const names = Object.keys(pages)
+        if (!names.length) return ok('No pages saved yet.')
+        const want = String(args.name ?? '').trim().toLowerCase()
+        const hits = want ? names.filter((n) => n.includes(want) || want.includes(n)) : names
+        if (!hits.length) return ok(`Nothing saved for "${want}". Saved: ${names.join(', ')}`)
+        return ok(hits.map((n) => `${n}: ${pages[n].url}`).join('\n'))
+      },
+    ),
   ]
 }
