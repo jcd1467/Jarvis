@@ -19,6 +19,22 @@ import { useStore, type Agenda } from '../store'
 /** How often to ask the bridge for markets and weather. */
 const POLL_MS = 60_000
 const AGENDA_KEY = 'jarvis.agenda'
+const ROUTINE_KEY = 'jarvis.routine'
+
+/**
+ * The clipping day, wake to submitted clip: each step, which agent does it,
+ * and exactly what to say. A click ticks a step; ticks reset each day.
+ */
+const ROUTINE: { step: string; who: string; say: string }[] = [
+  { step: 'Wake up', who: 'Brief', say: '“Good morning, Jarvis.”' },
+  { step: 'Campaigns', who: 'Scout', say: '“Join [campaign]” · “Save the rules for it.”' },
+  { step: 'Sources', who: 'Source Finder', say: '“What should I clip today?” → run the links in Ssemble' },
+  { step: 'Credits', who: 'Jarvis', say: '“I used [number] credits.”' },
+  { step: 'Review', who: 'Editor', say: '“Review my Ssemble clips.”' },
+  { step: 'Post', who: 'Publisher', say: '“Plan today’s posts.” → post from the iPad at the listed times' },
+  { step: 'Submit', who: 'Jarvis', say: '“Submit my new posts.” → say yes' },
+  { step: 'Evening', who: 'Editor', say: '“How did my clips do?” · Sundays: “Weekly review.”' },
+]
 
 type MarketItem = {
   name: string
@@ -223,6 +239,59 @@ function ClockWeather({ now, w }: { now: Date; w: WidgetData['weather'] }) {
   )
 }
 
+function Routine({ now }: { now: Date }) {
+  const today = todayKey(now)
+  const [done, setDone] = useState<number[]>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(ROUTINE_KEY) ?? 'null') as { date: string; done: number[] } | null
+      return saved?.date === today ? saved.done : []
+    } catch {
+      return []
+    }
+  })
+  // A new day clears the ticks, even if the page stayed open overnight.
+  const [day, setDay] = useState(today)
+  if (day !== today) {
+    setDay(today)
+    setDone([])
+  }
+  const toggle = (i: number) => {
+    const next = done.includes(i) ? done.filter((n) => n !== i) : [...done, i]
+    setDone(next)
+    try {
+      localStorage.setItem(ROUTINE_KEY, JSON.stringify({ date: today, done: next }))
+    } catch {
+      /* storage unavailable — ticks last for this session only */
+    }
+  }
+  const current = ROUTINE.findIndex((_, i) => !done.includes(i))
+  return (
+    <div className="w-block w-routine">
+      <div className="w-title">
+        ROUTINE
+        <span className="w-dim"> · {done.length}/{ROUTINE.length}</span>
+      </div>
+      {ROUTINE.map((r, i) => (
+        <button
+          key={r.step}
+          type="button"
+          className={`w-rt${done.includes(i) ? ' w-rt-done' : ''}${i === current ? ' w-rt-now' : ''}`}
+          onClick={() => toggle(i)}
+          title={done.includes(i) ? 'Mark not done' : 'Mark done'}
+        >
+          <span className="w-check">{done.includes(i) ? '✓' : ''}</span>
+          <span className="w-rt-body">
+            <span className="w-rt-step">
+              {r.step} <span className="w-rt-who">{r.who}</span>
+            </span>
+            <span className="w-rt-say">{r.say}</span>
+          </span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function NextUp({ now, agenda, countdowns }: { now: Date; agenda: Agenda | null; countdowns: WidgetData['countdowns'] }) {
   const today = todayKey(now)
   const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
@@ -417,6 +486,7 @@ export function Widgets() {
         {data && <ClipsWidget c={data.clips ?? null} s={data.ssemble} />}
       </div>
       <div className="w-col w-col-bl">
+        <Routine now={now} />
         <NextUp now={now} agenda={agenda} countdowns={data?.countdowns ?? []} />
       </div>
       <div className="w-col w-col-br">{data?.verse && <Verse v={data.verse} />}</div>

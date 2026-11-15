@@ -2215,6 +2215,36 @@ kbd {
   .team-on .team-state { display: inline; }
 }
 
+/* The daily routine: one clickable row per step. The next step to do glows. */
+.w-routine { width: 100%; }
+.w-rt {
+  all: unset;
+  pointer-events: auto;
+  cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 3px 0;
+}
+.w-rt .w-check { margin-top: 2px; }
+.w-rt-body { display: flex; flex-direction: column; min-width: 0; }
+.w-rt-step { font-size: 9px; letter-spacing: 0.18em; opacity: 0.75; }
+.w-rt-who { font-size: 7.5px; letter-spacing: 0.14em; opacity: 0.55; margin-left: 4px; }
+.w-rt-say {
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-size: 10.5px;
+  color: #dff8ee;
+  opacity: 0.8;
+  line-height: 1.35;
+}
+.w-rt-now .w-rt-step { opacity: 1; color: var(--accent); }
+.w-rt-now .w-rt-say { opacity: 1; }
+.w-rt-now .w-check { border-color: var(--accent); box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 50%, transparent); }
+.w-rt-done .w-rt-say, .w-rt-done .w-rt-step { opacity: 0.35; text-decoration: line-through; }
+.w-rt:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+
 /* Not enough room around the reactor below this width: the widgets would sit
    on top of the blades and the log. */
 @media (max-width: 1000px), (max-height: 640px) {
