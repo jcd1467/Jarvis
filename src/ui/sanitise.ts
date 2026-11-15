@@ -220,7 +220,7 @@ function narrowClasses(root: Element) {
  * been reading the open web, so a link anywhere else is shown as plain text —
  * a convincing phishing page is one click away otherwise.
  */
-const LINK_SITES = ['whop.com', 'vyro.com', 'tiktok.com', 'youtube.com', 'youtu.be', 'ssemble.com', 'twitch.tv', 'kick.com']
+const LINK_SITES = ['whop.com', 'contentrewards.com', 'vyro.com', 'tiktok.com', 'youtube.com', 'youtu.be', 'ssemble.com', 'twitch.tv', 'kick.com']
 
 export function linkAllowed(href: string): boolean {
   let url: URL

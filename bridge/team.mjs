@@ -65,7 +65,14 @@ const BROWSER = (process.env.JARVIS_DISABLE ?? '').split(',').map((s) => s.trim(
  * How to read his accounts, for every agent that does. These sites show
  * nothing useful to a logged-out fetch.
  */
-const SIGNED_IN = `Reading his accounts (Vyro, Whop, Ssemble, TikTok Studio, YouTube Studio):
+/** Sites where JARVIS may click and type — read from the same setting the bridge uses. */
+const WRITE_SITES = (process.env.JARVIS_CHROME_WRITE_SITES ?? '')
+  .split(',')
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean)
+
+const SIGNED_IN = `Reading his accounts (Content Rewards at contentrewards.com, Vyro, Whop,
+Ssemble, TikTok Studio, YouTube Studio):
 - ONLY through his Chrome (the chrome_* tools), where he is signed in. Never
   WebFetch or WebSearch for these sites — they come back logged out and empty.
 - Go straight to an address: the ones in your task first; Vyro's campaigns are
@@ -95,7 +102,8 @@ export const TEAM = {
 
 Your job: find the paid clipping campaigns most worth Jack's time.
 
-Where to look: Whop Content Rewards first (his main marketplace), then Vyro,
+Where to look: Content Rewards first (contentrewards.com, his main
+marketplace — campaigns may also be linked from Whop), then Vyro,
 both through his Chrome. Web search only to learn about a creator or confirm a
 program exists — never to read the campaign lists.
 
@@ -348,8 +356,10 @@ Posting packs — "make me a posting pack", "plan my posts":
 - The publisher's queue for the coming days, one blade, every caption checked,
   each post on his to-do list on its day with its time first.
 
-Joining campaigns and submitting posts — his Chrome, on vyro.com and whop.com:
-- You can click and type only on those sites, and only when he asks. Before
+Joining campaigns and submitting posts — his Chrome, on ${WRITE_SITES.length ? WRITE_SITES.join(', ') : 'no sites yet (JARVIS_CHROME_WRITE_SITES is empty)'}:
+- You can click and type only on those sites, and only when he asks. If he asks
+  you to act on a site not in that list, say which site it is and that he can
+  add it to JARVIS_CHROME_WRITE_SITES in .env.local — do not try. Before
   every click that joins a campaign, accepts terms or submits a link, say
   exactly what you are about to do and wait for his yes. One action per yes.
 - To submit posts: read his TikTok profile (and YouTube channel for Shorts) in

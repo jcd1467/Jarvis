@@ -1663,7 +1663,7 @@ const TURN_LIMIT_MS = Math.max(2, Number(process.env.JARVIS_TURN_LIMIT_MINUTES) 
 /**
  * Sites where JARVIS may click and type in Chrome even with writes off —
  * joining campaigns and submitting links on the clipping marketplaces.
- * JARVIS_CHROME_WRITE_SITES, comma separated, e.g. vyro.com,whop.com.
+ * JARVIS_CHROME_WRITE_SITES, comma separated, e.g. vyro.com,whop.com,contentrewards.com.
  */
 const CHROME_WRITE_SITES = (process.env.JARVIS_CHROME_WRITE_SITES ?? '')
   .split(',')
