@@ -201,7 +201,7 @@ const ALLOWED_CLASSES = new Set([
   'hud-tag', 'hud-metric', 'hud-unit', 'hud-note', 'hud-img', 'hud-caption',
   'hud-grid', 'hud-bar', 'hud-dim', 'hud-hot',
   'hud-gallery', 'hud-thumb', 'hud-video', 'hud-embed', 'hud-figure',
-  'hud-cols', 'hud-col', 'hud-col-v', 'hud-col-k', 'hud-ring', 'hud-up', 'hud-down',
+  'hud-cols', 'hud-col', 'hud-col-v', 'hud-col-k', 'hud-ring', 'hud-up', 'hud-down', 'hud-link',
 ])
 
 function narrowClasses(root: Element) {
@@ -211,6 +211,46 @@ function narrowClasses(root: Element) {
       .filter((c) => ALLOWED_CLASSES.has(c))
     if (kept.length) el.setAttribute('class', kept.join(' '))
     else el.removeAttribute('class')
+  })
+}
+
+/**
+ * The only sites a card may link to: the clipping marketplaces, the platforms
+ * he posts on, and Ssemble. Card markup is written by a model that has just
+ * been reading the open web, so a link anywhere else is shown as plain text —
+ * a convincing phishing page is one click away otherwise.
+ */
+const LINK_SITES = ['whop.com', 'vyro.com', 'tiktok.com', 'youtube.com', 'youtu.be', 'ssemble.com']
+
+export function linkAllowed(href: string): boolean {
+  let url: URL
+  try {
+    url = new URL(href)
+  } catch {
+    return false
+  }
+  if (url.protocol !== 'https:') return false
+  const host = url.hostname.toLowerCase()
+  return LINK_SITES.some((s) => host === s || host.endsWith(`.${s}`))
+}
+
+/**
+ * Trusted links open in a new tab with no opener; anything else becomes its
+ * text. Done after DOMPurify so the decision is ours, not its regexp's.
+ */
+function keepTrustedLinks(root: Element) {
+  root.querySelectorAll('a').forEach((a) => {
+    const href = a.getAttribute('href') ?? ''
+    if (!linkAllowed(href)) {
+      a.replaceWith(...Array.from(a.childNodes))
+      return
+    }
+    for (const attr of Array.from(a.attributes)) {
+      if (attr.name !== 'href' && attr.name !== 'class') a.removeAttribute(attr.name)
+    }
+    a.setAttribute('target', '_blank')
+    a.setAttribute('rel', 'noopener noreferrer')
+    a.classList.add('hud-link')
   })
 }
 
@@ -227,11 +267,11 @@ export function sanitisePanelHtml(html: string): string {
         // Showing a video result as a line of text was the polite version of
         // refusing to answer.
         'video', 'source', 'iframe',
+        // Links, for a short list of trusted sites only — see keepTrustedLinks.
+        'a',
       ],
-      // No href — a HUD panel isn't clickable, and it keeps navigation off the
-      // table entirely.
       ALLOWED_ATTR: [
-        'class', 'src', 'alt', 'style',
+        'class', 'src', 'alt', 'style', 'href',
         'controls', 'poster', 'loop', 'muted', 'playsinline', 'preload',
         'width', 'height', 'allow', 'allowfullscreen', 'referrerpolicy',
         'type', 'title',
@@ -276,6 +316,7 @@ export function sanitisePanelHtml(html: string): string {
     else el.removeAttribute('style')
   })
   narrowClasses(doc.body)
+  keepTrustedLinks(doc.body)
   // Order matters: rewriteEmbeds runs before hardenMedia so an iframe that is
   // about to be removed is never dressed up first, and both run after
   // narrowClasses so a dropped element takes its classes with it.

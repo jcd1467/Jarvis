@@ -40,7 +40,7 @@ import { widgetData } from './widgets.mjs'
 import { clipTotals, listsServer, toggleTodo, todosFor } from './lists.mjs'
 import { startShiftSync } from './shifts.mjs'
 import { PROMPT_TEAM, TEAM, dailyAnalystTask, dailyScoutTask } from './team.mjs'
-import { lastReport, localDate, saveReport } from './lists.mjs'
+import { joinedCampaigns, lastReport, localDate, saveReport } from './lists.mjs'
 import { probeUrl, renderPage } from './page.mjs'
 import {
   builtinTools,
@@ -653,6 +653,10 @@ const PROMPT_BRIEF = `The morning brief:
      quote scripture from memory — a misquoted verse is worse than none.
   7. The scout's report (\`team_report\`): if it is from today, one clause on
      the best campaign or "nothing new". Do not run the team for the brief.
+     On the TODAY blade, add a CAMPAIGNS section: his joined campaigns with
+     keep / stop, then the top picks — each with rate and minimum and its link
+     as <a href="…">Open campaign</a>, copied exactly from the report. A
+     "Link: not opened" has no link.
 - Speak no more than four short sentences: the day and date; the weather in
   one clause; the first fixed commitment and its time; the count of tasks due
   (name one if it is overdue); the single most important headline. End by
@@ -1562,7 +1566,7 @@ async function maybeRunDaily() {
   if (DAILY_SCOUT && !scoutRunning && lastReport('scout')?.date !== today) {
     scoutRunning = true
     try {
-      await runUnattended('scout', dailyScoutTask(today, lastReport('scout')?.text ?? ''), { chrome: true })
+      await runUnattended('scout', dailyScoutTask(today, lastReport('scout')?.text ?? '', joinedCampaigns()), { chrome: true })
     } finally {
       scoutRunning = false
     }

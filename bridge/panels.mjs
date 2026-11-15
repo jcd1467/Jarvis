@@ -53,6 +53,11 @@ styling and the row lands as unformatted text.
                        .hud-metric and .hud-unit inside — they sit in its centre
   .hud-up / .hud-down  colour a change green (up) or red (down); only for a
                        real gain or loss, never decoration
+  <a href="https://…"> a clickable link, opening in a new tab — ONLY to
+                       whop.com, vyro.com, tiktok.com, youtube.com, youtu.be
+                       or ssemble.com, and only an address you actually
+                       visited or read. Any other link shows as plain text.
+                       Short label: <a href="…">Open campaign</a>
 
 PICTURES AND VIDEO — these work. Use them.
   - Images from the web render. Image-search results, article thumbnails,

@@ -137,6 +137,14 @@ export function saveReport(kind, text) {
   save(state)
 }
 
+/** The joined, still-active campaigns, one line each, for the daily scout. */
+export function joinedCampaigns() {
+  return (load().campaigns ?? [])
+    .filter((c) => c.status !== 'ended')
+    .map((c) => `- ${c.name}${c.platform ? ` (${c.platform})` : ''}${c.ends ? `, ends ${c.ends}` : ''}${c.url ? `, ${c.url}` : ''}`)
+    .join('\n')
+}
+
 export function lastReport(kind) {
   return load().reports?.[kind] ?? null
 }

@@ -85,6 +85,14 @@ quoted:
 - It forbids AI editing tools and offers no ready-made edits (he edits with
   Ssemble, so he would have nothing to post).
 - It asks for payment, a course, or a DM to join.
+- It cannot be clipped with Ssemble: ready-made-edit-only campaigns, or no long
+  source videos or streams to feed it. He clips with Ssemble only.
+- It pays under $1.00 per 1,000 views — or under $0.75 for a very big creator
+  (roughly 10 million+ followers, MrBeast-sized).
+- It needs more than 5,000 views per post to pay — or more than 10,000 for a
+  very big creator.
+- Its content is explicit or adult, hateful, or a scam. Anything else is fine;
+  popular beats niche.
 
 Score the rest out of 100 — show the score and the one-line reason:
 - Budget health, 30: plenty left and at least 5–7 days to run. Estimate the
@@ -101,10 +109,21 @@ Score the rest out of 100 — show the score and the one-line reason:
 - Trust, 10: verified creator or brand, clear brief, free to join. Anything
   asking for payment, a course, or a DM first scores 0 and goes on the skip list.
 
-Report: the top three with score, rate, minimum, budget % and days left, and
-the reason; then "Skip:" with each strong-looking campaign to avoid and why
-(e.g. "80% spent, 2 days left", "AI tools not allowed"); then "New:" for
-anything that was not in the previous report you were given.
+Keep him in 3 to 5 active campaigns. You are given the campaigns he has
+already joined: check each one's budget and days left, and say "stop clipping
+for X" when it is nearly spent or about to end. Recommend joining only as many
+new ones as it takes to get back to 3–5.
+
+Report: first "Your campaigns:" — each joined one with % paid and days left,
+and keep / stop. Then the top three to join, each with score, rate, minimum,
+budget % and days left, the reason, and its link. Then "Skip:" with each
+strong-looking campaign to avoid and why (quote the rule). Then "New:" for
+anything not in the previous report you were given.
+
+Links: for every campaign you name, give the exact https address of the page
+you read it on (the address shown when you opened it in Chrome), written as
+"Link: https://…". Never build, shorten or guess an address — if you did not
+open the page, write "Link: not opened".
 At most eight page reads or searches. Never guess a number you did not read.`,
     disallowedTools: [...NO_ACCESS, 'mcp__claude_ai_Asana'],
     model: 'sonnet',
@@ -256,11 +275,14 @@ one thing to change. If Chrome is not available, say so and stop.`
 }
 
 /** The prompt for the unattended daily Scout run. */
-export function dailyScoutTask(today, previous = '') {
+export function dailyScoutTask(today, previous = '', joined = '') {
   return `Today is ${today}. Daily scout run, unattended — Jack is not watching.
 Find and score the paid clipping campaigns most worth his time, as your
 instructions describe. Then add one line: what he should act on today (or
-"Nothing new").${previous ? `
+"Nothing new").
+
+Campaigns he has joined (check each one first):
+${joined || 'None saved yet.'}${previous ? `
 
 Your previous report, for the "New:" section and to spot campaigns draining fast:
 ${previous.slice(0, 2500)}` : ''}`
