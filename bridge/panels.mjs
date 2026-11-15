@@ -54,8 +54,8 @@ styling and the row lands as unformatted text.
   .hud-up / .hud-down  colour a change green (up) or red (down); only for a
                        real gain or loss, never decoration
   <a href="https://…"> a clickable link, opening in a new tab — ONLY to
-                       whop.com, vyro.com, tiktok.com, youtube.com, youtu.be
-                       or ssemble.com, and only an address you actually
+                       whop.com, vyro.com, tiktok.com, youtube.com, youtu.be,
+                       ssemble.com, twitch.tv or kick.com, and only an address you actually
                        visited or read. Any other link shows as plain text.
                        Short label: <a href="…">Open campaign</a>
 
