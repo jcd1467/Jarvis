@@ -51,18 +51,41 @@ export const TEAM = {
       'Scout: finds live paid clipping campaigns (Whop Content Rewards, Vyro, creator programs), their rates, caps, minimums and rules, and which streamers in them are worth clipping right now. Use for "find campaigns", "who pays", "is X running a clipping program".',
     prompt: `${SHARED}
 
-Your job: find paid clipping campaigns worth Jack's time.
-- Search Whop Content Rewards, Vyro and creators' own announcements.
-- For each campaign: creator, platform, rate per 1,000 views, minimum views or
-  payout, per-clip cap, budget left if shown, key rules, and the date you saw it.
-- Prefer gaming and streamer campaigns — GTA 6 launches November 19, 2026, and
-  Jack wants streamers likely to play it.
-- Rank the best three by likely earnings for a beginner: decent rate, budget not
-  nearly spent, low minimums, rules a beginner can follow.
-- At most six searches or page reads. Stop once you have three solid options.`,
+Your job: find the paid clipping campaigns most worth Jack's time.
+
+Where to look: Whop Content Rewards first (his main marketplace — read it
+through his Chrome, where he is signed in), then Vyro. Creators' own
+announcements only to confirm a program exists.
+
+For each campaign, record: creator or brand, marketplace, rate per 1,000 views,
+minimum views per post, max per post, budget total and % paid out, days left,
+platforms that count, whether footage or ready-made edits are provided, whether
+AI tools are allowed, outside-visual and audio rules, account requirements
+(followers, account age, region), and the date you read it.
+
+Score each out of 100 — show the score and the one-line reason:
+- Budget health, 30: plenty left and at least 5–7 days to run. Estimate the
+  burn: % paid ÷ days since launch. If it will run dry within ~3 days, score
+  low however good the rate.
+- Pay, 25: rate ($1 typical, $2+ good) weighed against the minimum views — a
+  low minimum (1,000) beats a high one (5,000+) for a new account.
+- Fit, 20: footage or ready-made edits provided; streamer or gaming content;
+  streamers likely to play GTA 6 (launches November 19, 2026); long,
+  action-packed source videos.
+- Rules fit, 15: AI tools allowed (he edits with Ssemble); no follower minimum
+  or account-age rule he fails (his account is new, ~0 followers); simple
+  caption rules.
+- Trust, 10: verified creator or brand, clear brief, free to join. Anything
+  asking for payment, a course, or a DM first scores 0 and goes on the skip list.
+
+Report: the top three with score, rate, minimum, budget % and days left, and
+the reason; then "Skip:" with each strong-looking campaign to avoid and why
+(e.g. "80% spent, 2 days left", "AI tools not allowed"); then "New:" for
+anything that was not in the previous report you were given.
+At most eight page reads or searches. Never guess a number you did not read.`,
     disallowedTools: [...NO_ACCESS, 'mcp__claude_ai_Asana'],
     model: 'sonnet',
-    maxTurns: 9,
+    maxTurns: 12,
   },
 
   trends: {
@@ -207,9 +230,12 @@ one thing to change. If Chrome is not available, say so and stop.`
 }
 
 /** The prompt for the unattended daily Scout run. */
-export function dailyScoutTask(today) {
+export function dailyScoutTask(today, previous = '') {
   return `Today is ${today}. Daily scout run, unattended — Jack is not watching.
-Find the paid clipping campaigns most worth his time this week, as your
-instructions describe. Then add one line: anything new or changed that he
-should act on today (or "Nothing new").`
+Find and score the paid clipping campaigns most worth his time, as your
+instructions describe. Then add one line: what he should act on today (or
+"Nothing new").${previous ? `
+
+Your previous report, for the "New:" section and to spot campaigns draining fast:
+${previous.slice(0, 2500)}` : ''}`
 }
