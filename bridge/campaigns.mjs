@@ -10,6 +10,7 @@
 
 import { tool } from '@anthropic-ai/claude-agent-sdk'
 import { z } from 'zod'
+import { POST_PLATFORMS } from './team.mjs'
 
 const ok = (text) => ({ content: [{ type: 'text', text }] })
 
@@ -93,6 +94,14 @@ export function ssembleSettings(c) {
   return out
 }
 
+/** Required platforms he does not post on — a dealbreaker for that campaign. */
+export function platformProblems(c, mine = POST_PLATFORMS) {
+  const have = mine.map((p) => normalise(p))
+  return (c.requiredPlatforms ?? [])
+    .filter((p) => !have.some((h) => h.includes(normalise(p)) || normalise(p).includes(h)))
+    .map((p) => `this campaign requires posting on ${p}, which he does not use`)
+}
+
 function describe(c) {
   const lines = [
     `${c.name}${c.platform ? ` (${c.platform})` : ''}${c.status === 'ended' ? ' — ENDED' : ''}`,
@@ -101,6 +110,8 @@ function describe(c) {
     c.maxPerPost ? `Max per post: ${c.maxPerPost}` : null,
     c.ends ? `Ends: ${c.ends}` : null,
     c.postPlatforms?.length ? `Counts on: ${c.postPlatforms.join(', ')}` : null,
+    c.requiredPlatforms?.length ? `MUST be posted on: ${c.requiredPlatforms.join(', ')}` : null,
+    ...platformProblems(c).map((p) => `WARNING: ${p}`),
     c.requiredPhrases?.length ? `Caption must include: ${c.requiredPhrases.map((p) => `"${p}"`).join('; ')}` : null,
     c.requiredHashtags?.length ? `Required hashtags: ${c.requiredHashtags.join(' ')}` : null,
     c.onlyListedHashtags ? 'No other hashtags.' : null,
@@ -144,6 +155,10 @@ export function campaignTools({ load, save }) {
         maxPerPost: z.string().optional(),
         ends: z.string().optional().describe('YYYY-MM-DD if known.'),
         postPlatforms: z.array(z.string()).optional().describe('Platforms that count, e.g. ["TikTok"].'),
+        requiredPlatforms: z
+          .array(z.string())
+          .optional()
+          .describe('Platforms the rules REQUIRE posting on (all of them), as opposed to merely accepting.'),
         requiredPhrases: z.array(z.string()).optional().describe('Text the caption must include, exactly.'),
         requiredHashtags: z.array(z.string()).optional().describe('Hashtags that must appear, e.g. ["#TheDropPartner"].'),
         allowedHashtags: z.array(z.string()).optional(),

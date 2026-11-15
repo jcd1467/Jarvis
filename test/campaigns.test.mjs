@@ -50,3 +50,12 @@ test('save, look up, check and end through the tools', async () => {
   assert.match(await call('campaign_end', { campaign: 'drop' }), /ended/)
   assert.match(await call('campaign_rules', {}), /ended/)
 })
+
+test('a campaign that requires a platform he does not use is flagged', async () => {
+  const { platformProblems } = await import('../bridge/campaigns.mjs')
+  assert.equal(platformProblems({ requiredPlatforms: ['Instagram', 'TikTok'] }, ['TikTok', 'YouTube Shorts']).length, 1)
+  assert.match(platformProblems({ requiredPlatforms: ['Instagram'] }, ['TikTok'])[0], /Instagram/)
+  assert.equal(platformProblems({ requiredPlatforms: ['TikTok'] }, ['TikTok', 'YouTube Shorts']).length, 0)
+  assert.equal(platformProblems({ postPlatforms: ['TikTok', 'Instagram'] }, ['TikTok']).length, 0)
+  assert.match(await call('campaign_save', { name: 'Stream House LA', requiredPlatforms: ['Instagram', 'TikTok'] }), /WARNING/)
+})

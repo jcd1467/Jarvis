@@ -13,8 +13,18 @@
  * system prompt or the user's profile, only this and the task it is given.
  */
 
+/**
+ * The platforms he actually posts on. A campaign that requires any other is
+ * not for him, however good it looks. JARVIS_POST_PLATFORMS overrides.
+ */
+export const POST_PLATFORMS = (process.env.JARVIS_POST_PLATFORMS ?? 'TikTok, YouTube Shorts')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
+
 const SHARED = `You are part of a small team working for Jack, a college student starting
-a paid-per-view clipping side business. Your report goes to JARVIS, his chief of
+a paid-per-view clipping side business. He posts ONLY on: ${POST_PLATFORMS.join(', ')}.
+Never plan or recommend posting anywhere else. Your report goes to JARVIS, his chief of
 staff, who decides what to tell him — so write for JARVIS, not for Jack.
 
 Ground rules, all absolute:
@@ -63,7 +73,20 @@ platforms that count, whether footage or ready-made edits are provided, whether
 AI tools are allowed, outside-visual and audio rules, account requirements
 (followers, account age, region), and the date you read it.
 
-Score each out of 100 — show the score and the one-line reason:
+Read each campaign's FULL brief and rules — open it; the card in the list is
+not enough. Before scoring, check the dealbreakers. A campaign that fails ANY
+of these is not scored and goes straight on the skip list, with the rule
+quoted:
+- It requires posting on a platform he does not use (he posts only on
+  ${POST_PLATFORMS.join(', ')}). "Must post on both Instagram and TikTok" fails.
+  A campaign that merely also accepts other platforms is fine.
+- It needs followers, account age, a region, or anything else his new
+  account (~0 followers) does not have.
+- It forbids AI editing tools and offers no ready-made edits (he edits with
+  Ssemble, so he would have nothing to post).
+- It asks for payment, a course, or a DM to join.
+
+Score the rest out of 100 — show the score and the one-line reason:
 - Budget health, 30: plenty left and at least 5–7 days to run. Estimate the
   burn: % paid ÷ days since launch. If it will run dry within ~3 days, score
   low however good the rate.
@@ -191,6 +214,9 @@ Campaign rules — remembered once per campaign:
   Chrome (or what he pasted) and call campaign_save with exactly what the rules
   say. Then tell him, in two sentences, what you saved and the Ssemble settings
   to use. Ask him to send a screenshot of anything you could not read.
+- If campaign_rules shows a WARNING (a required platform he does not use, or
+  any rule he cannot meet), tell him plainly before anything else and do not
+  plan posts for it.
 - Before writing any caption for a campaign, read campaign_rules and pass the
   rules to the copywriter in its task — the team cannot read them themselves.
 - Run caption_check on every caption before you give it to him, and on every
