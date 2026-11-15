@@ -11,3 +11,13 @@ test('only the analyst may reach Asana; no agent reaches the screen, lists or ma
     assert.match(a.prompt, /Never invent/)
   }
 })
+
+test('agents that read his accounts get his Chrome and must use it', () => {
+  for (const name of ['scout', 'editor', 'sources']) {
+    assert.deepEqual(TEAM[name].mcpServers, ['jarvis_chrome'], name)
+  }
+  for (const name of ['scout', 'editor', 'analyst']) {
+    assert.match(TEAM[name].prompt, /ONLY through his Chrome/, name)
+    assert.match(TEAM[name].prompt, /Never\s+WebFetch or WebSearch for these sites/, name)
+  }
+})

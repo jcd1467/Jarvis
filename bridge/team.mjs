@@ -52,6 +52,31 @@ Report format: plain text, at most about 200 words. Lead with the answer.
 Short lines, one finding per line, each with its source in brackets. End with
 "Gaps:" listing anything you could not confirm.`
 
+/**
+ * His Chrome, attached by name to the agents that read his signed-in pages.
+ * Left to inherit, the scout reached for WebSearch / WebFetch instead — which
+ * see Vyro and Whop logged out, so it never saw a single campaign.
+ */
+const BROWSER = (process.env.JARVIS_DISABLE ?? '').split(',').map((s) => s.trim()).includes('browser')
+  ? {}
+  : { mcpServers: ['jarvis_chrome'] }
+
+/**
+ * How to read his accounts, for every agent that does. These sites show
+ * nothing useful to a logged-out fetch.
+ */
+const SIGNED_IN = `Reading his accounts (Vyro, Whop, Ssemble, TikTok Studio, YouTube Studio):
+- ONLY through his Chrome (the chrome_* tools), where he is signed in. Never
+  WebFetch or WebSearch for these sites — they come back logged out and empty.
+- Go straight to an address: the ones in your task first; Vyro's campaigns are
+  at https://app.vyro.com. Open it with chrome_navigate, then read it with
+  chrome_page_text. Scroll (chrome_scroll) and read again if the list continues.
+- To open one campaign's full brief, use chrome_find for its name and
+  chrome_navigate to the link it gives, rather than guessing an address.
+- If a page shows a sign-in screen, a permission prompt, or comes back empty,
+  stop and report exactly that ("Vyro: sign-in page", "Whop: blank") — do not
+  retry or fall back to web search for these sites.`
+
 const NO_ACCESS = [
   'mcp__jarvis',
   'mcp__jarvis_ui',
@@ -70,9 +95,11 @@ export const TEAM = {
 
 Your job: find the paid clipping campaigns most worth Jack's time.
 
-Where to look: Whop Content Rewards first (his main marketplace — read it
-through his Chrome, where he is signed in), then Vyro. Creators' own
-announcements only to confirm a program exists.
+Where to look: Whop Content Rewards first (his main marketplace), then Vyro,
+both through his Chrome. Web search only to learn about a creator or confirm a
+program exists — never to read the campaign lists.
+
+${SIGNED_IN}
 
 For each campaign, record: creator or brand, marketplace, rate per 1,000 views,
 minimum views per post, max per post, budget total and % paid out, days left,
@@ -133,6 +160,7 @@ you read it on (the address shown when you opened it in Chrome), written as
 open the page, write "Link: not opened".
 At most eight page reads or searches. Never guess a number you did not read.`,
     disallowedTools: [...NO_ACCESS, 'mcp__claude_ai_Asana'],
+    ...BROWSER,
     model: 'sonnet',
     maxTurns: 12,
   },
@@ -149,7 +177,8 @@ and credits left this month.
 
 - Only creators from his joined campaigns. Only sources from the last 2–3 days.
 - Find each creator's newest long uploads or stream VODs (YouTube, Twitch,
-  Kick). For a long stream, point to the best 20-minute stretches: YouTube's
+  Kick) — public pages, so web search and fetch are fine here; the campaign's
+  own source links come from his Chrome. For a long stream, point to the best 20-minute stretches: YouTube's
   "most replayed" peaks, the stream's top clips on Twitch or Kick, chapters,
   recaps, what fans are posting about. Say what happens in each stretch.
 - Weigh in what is trending in that niche right now (moments, formats, GTA 6
@@ -162,6 +191,7 @@ Report a feed list, best first, one line each:
      supports one (YouTube &t=…s). Never build or guess an address.
 End with: "Today: X of Y credits · Z left this month".`,
     disallowedTools: [...NO_ACCESS, 'mcp__claude_ai_Asana'],
+    ...BROWSER,
     model: 'sonnet',
     maxTurns: 12,
   },
@@ -192,8 +222,11 @@ the end, and early drop-off if shown. One line per video with the reason it
 did well or badly, then ONE pattern to do more of and ONE to stop.
 
 You cannot watch video; work only from what the pages show. Never guess a
-number you did not read.`,
+number you did not read.
+
+${SIGNED_IN}`,
     disallowedTools: [...NO_ACCESS, 'mcp__claude_ai_Asana'],
+    ...BROWSER,
     model: 'sonnet',
     maxTurns: 12,
   },
@@ -245,7 +278,9 @@ Your job: where the money is coming from, and what to change. Real numbers only.
 - One change to make next week, and the best posting times you can see for the
   publisher.
 - If Chrome is not available or a page cannot be read, say exactly which
-  numbers are missing. Never estimate them.`,
+  numbers are missing. Never estimate them.
+
+${SIGNED_IN}`,
     disallowedTools: [...NO_ACCESS],
     model: 'sonnet',
     maxTurns: 12,
@@ -264,9 +299,14 @@ export const PROMPT_TEAM = `Your team — you are the chief of staff for viralcu
 - Use the team for clipping work that takes research or several steps. Answer
   simple questions yourself; a team run is slower and costs more.
 - Give each agent a self-contained task: today's date, exactly what you need
-  back, his joined campaigns and their saved rules (campaign_rules), saved page
-  addresses (page_lookup), today's credit budget (ssemble_credits) — whatever
-  that job needs. They see nothing else.
+  back, his joined campaigns and their saved rules (campaign_rules), EVERY
+  saved page address (page_lookup with no name — always include these for the
+  scout, editor and analyst), today's credit budget (ssemble_credits) —
+  whatever that job needs. They see nothing else.
+- "Remember this page as …" (or "save this page"): read the address of his
+  active Chrome tab with chrome_tabs and save it with page_remember. Suggest
+  it the first time an agent could not find Content Rewards or a dashboard:
+  "Open it in Chrome and say: remember this page as content rewards."
 - Run agents that do not depend on each other at the same time; run them in
   order when one needs another's output (publisher after editor).
 - Always wait for their reports in the same turn. Never run an agent in the
@@ -341,11 +381,14 @@ make this week. Keep it under 250 words.${pages ? `\n\nSaved page addresses — 
 }
 
 /** The prompt for the unattended daily Scout run. */
-export function dailyScoutTask(today, previous = '', joined = '') {
+export function dailyScoutTask(today, previous = '', joined = '', pages = '') {
   return `Today is ${today}. Daily scout run, unattended — Jack is not watching.
 Find and score the paid clipping campaigns most worth his time, as your
 instructions describe. Then add one line: what he should act on today (or
-"Nothing new").
+"Nothing new").${pages ? `
+
+Saved page addresses — go straight to these:
+${pages}` : ''}
 
 Campaigns he has joined (check each one first):
 ${joined || 'None saved yet.'}${previous ? `

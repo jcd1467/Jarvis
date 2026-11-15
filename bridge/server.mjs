@@ -1583,7 +1583,7 @@ async function maybeRunDaily() {
   if (DAILY_SCOUT && !scoutRunning && lastReport('scout')?.date !== today) {
     scoutRunning = true
     try {
-      await runUnattended('scout', dailyScoutTask(today, lastReport('scout')?.text ?? '', joinedCampaigns()), { chrome: true })
+      await runUnattended('scout', dailyScoutTask(today, lastReport('scout')?.text ?? '', joinedCampaigns(), pageList()), { chrome: true })
     } finally {
       scoutRunning = false
     }
