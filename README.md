@@ -122,6 +122,12 @@ Tracker and the CLIPS widget). `JARVIS_CHROME_WRITE_SITES=vyro.com,whop.com`
 lets JARVIS join campaigns and submit links on those sites only, asking before
 each click. A TEAM bar along the top shows what each agent is doing.
 
+Campaign rules are saved once per campaign ("save the rules for The Drop"):
+required caption text and hashtags, length limits, whether AI tools and outside
+visuals are allowed, and the Ssemble settings that follow. Every caption JARVIS
+writes, and every post before it is submitted, goes through `caption_check` —
+plain code, so a missing phrase or a disallowed hashtag is caught every time.
+
 ### Windows: one-click start
 
 From the Jarvis folder, run this once to put **Start JARVIS** and **Stop

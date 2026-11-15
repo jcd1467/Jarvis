@@ -4,6 +4,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { campaignTools } from './campaigns.mjs'
 
 /**
  * JARVIS's own small lists: a dated to-do list and the latest clip totals.
@@ -33,9 +34,14 @@ export function localDate(d = new Date()) {
 function load() {
   try {
     const s = JSON.parse(readFileSync(PATH, 'utf8'))
-    return { todos: Array.isArray(s.todos) ? s.todos : [], clips: s.clips ?? null, reports: s.reports ?? {} }
+    return {
+      todos: Array.isArray(s.todos) ? s.todos : [],
+      clips: s.clips ?? null,
+      reports: s.reports ?? {},
+      campaigns: Array.isArray(s.campaigns) ? s.campaigns : [],
+    }
   } catch {
-    return { todos: [], clips: null, reports: {} }
+    return { todos: [], clips: null, reports: {}, campaigns: [] }
   }
 }
 
@@ -172,8 +178,9 @@ export function listsServer(changed) {
     name: 'jarvis_lists',
     version: '1.0.0',
     instructions:
-      "The user's to-do list and their clip totals, both shown on their screen. " +
-      'Use these, not Asana, whenever they say "to-do list" or "my list".',
+      "The user's to-do list, their clip totals, and the rules of each clipping " +
+      'campaign they have joined. Use these, not Asana, whenever they say ' +
+      '"to-do list" or "my list"; check every campaign caption with caption_check.',
     alwaysLoad: true,
     tools: listTools(changed),
   })
@@ -295,5 +302,7 @@ export function listTools(changed = () => {}) {
           return ok('Saved.')
         },
       ),
+    // Campaign rules and the caption check: bridge/campaigns.mjs.
+    ...campaignTools({ load, save }),
   ]
 }
