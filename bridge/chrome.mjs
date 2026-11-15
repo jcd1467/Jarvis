@@ -685,6 +685,9 @@ acting on a page, and the reliable way to find out what is actually on it.
 Prefer this over a screenshot when you want to know what a page says or what can
 be clicked. Use chrome_page_text instead when you only want the prose.`
 
+/** Default cap on chrome_page_text, in characters (about 7,000 tokens). */
+const PAGE_TEXT_CHARS = 25_000
+
 /** The address of a tab, read the same way settle() does. Null if unknown. */
 async function tabUrl(tab) {
   try {
@@ -835,7 +838,15 @@ export function chromeServer({ allowWrites, writeSites = [] }) {
         tabId,
         max_chars: z.union([z.number(), z.string()]).optional().catch(undefined),
       },
-      forward('get_page_text'),
+      // Capped by default. A TikTok profile or a long campaign list can run to
+      // hundreds of thousands of characters, and one result that size bloats
+      // every later step of the turn — the likely cause of turns failing part
+      // way through a submission. Ask for more explicitly when needed.
+      (args) =>
+        forward('get_page_text')({
+          ...args,
+          max_chars: Math.min(Number(args?.max_chars) || PAGE_TEXT_CHARS, 120_000),
+        }),
     ),
 
     tool(
