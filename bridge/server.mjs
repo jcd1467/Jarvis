@@ -39,8 +39,8 @@ import { openRemote, proxyError, upstreamMessage, vetTarget, PROXY_UA } from './
 import { widgetData } from './widgets.mjs'
 import { clipTotals, listsServer, toggleTodo, todosFor } from './lists.mjs'
 import { startShiftSync } from './shifts.mjs'
-import { PROMPT_TEAM, TEAM, dailyAnalystTask, dailyScoutTask } from './team.mjs'
-import { joinedCampaigns, lastReport, localDate, saveReport } from './lists.mjs'
+import { PROMPT_TEAM, TEAM, TOOL_COST, dailyAnalystTask, dailyScoutTask, weeklyReviewTask } from './team.mjs'
+import { creditStatus, joinedCampaigns, lastReport, localDate, pageList, saveReport } from './lists.mjs'
 import { probeUrl, renderPage } from './page.mjs'
 import {
   builtinTools,
@@ -666,6 +666,8 @@ const PROMPT_BRIEF = `The morning brief:
      https://labs.bible.org/api/?passage=votd&type=json and quote it exactly
      with its reference; if that fails, WebSearch "verse of the day". Never
      quote scripture from memory — a misquoted verse is worse than none.
+  8. On Sundays, the weekly review (\`team_report\` kind "weekly"): its one
+     change, spoken; the rest on the blade in a WEEK section.
   7. The scout's report (\`team_report\`): if it is from today, one clause on
      the best campaign or "nothing new". Do not run the team for the brief.
      On the TODAY blade, add a CAMPAIGNS section: his joined campaigns with
@@ -1116,7 +1118,7 @@ const handleRequest = async (req, res) => {
   // The always-on widgets: market indices, weather, countdowns. Polled by the
   // page about once a minute; widgets.mjs caches each source.
   if (req.method === 'GET' && req.url === '/widgets') {
-    const data = { ...(await widgetData()), todos: todosFor(), clips: clipTotals() }
+    const data = { ...(await widgetData()), todos: todosFor(), clips: clipTotals(), ssemble: { ...creditStatus(), cost: TOOL_COST } }
     res.writeHead(200, { ...cors, 'content-type': 'application/json', 'cache-control': 'no-store' })
     return res.end(JSON.stringify(data))
   }
@@ -1505,7 +1507,7 @@ let analystRunning = false
  * user's Chrome when it is open (read-only unless sites are trusted, and the
  * daily runs never click), saves its report, and shows on the team bar.
  */
-async function runUnattended(agent, task, { chrome = false, lists = false, connectors = false } = {}) {
+async function runUnattended(agent, task, { chrome = false, lists = false, connectors = false, kind = agent } = {}) {
   const def = TEAM[agent]
   let text = ''
   const servers = {}
@@ -1550,8 +1552,8 @@ async function runUnattended(agent, task, { chrome = false, lists = false, conne
       if (msg.type === 'result') text = msg.subtype === 'success' ? String(msg.result ?? '') : ''
     }
     if (text.trim()) {
-      saveReport(agent, text.trim())
-      console.log(`[jarvis] daily ${agent}: report saved`)
+      saveReport(kind, text.trim())
+      console.log(`[jarvis] daily ${kind}: report saved`)
       setTeam(agent, { state: 'idle', step: '', last: 'daily run done' })
     } else {
       console.warn(`[jarvis] daily ${agent}: finished without a report`)
@@ -1589,7 +1591,12 @@ async function maybeRunDaily() {
   if (DAILY_ANALYST && !analystRunning && lastReport('analyst')?.date !== today) {
     analystRunning = true
     try {
-      await runUnattended('analyst', dailyAnalystTask(today), { chrome: true, lists: true, connectors: true })
+      const pages = pageList()
+      await runUnattended('analyst', dailyAnalystTask(today, pages), { chrome: true, lists: true, connectors: true })
+      // Sundays: the weekly review, saved separately for the morning brief.
+      if (new Date(`${today}T12:00:00Z`).getUTCDay() === 0 && lastReport('weekly')?.date !== today) {
+        await runUnattended('analyst', weeklyReviewTask(today, pages), { chrome: true, lists: true, connectors: true, kind: 'weekly' })
+      }
     } finally {
       analystRunning = false
     }

@@ -141,12 +141,38 @@ export function saveReport(kind, text) {
   save(state)
 }
 
+/**
+ * Ssemble credits this billing period. The period starts on the renewal day
+ * of the month (JARVIS_SSEMBLE_RENEW_DAY, the day he subscribed); the
+ * allowance is JARVIS_SSEMBLE_CREDITS (70 on Expert).
+ */
+export function creditStatus(now = new Date()) {
+  const total = Number(process.env.JARVIS_SSEMBLE_CREDITS) || 70
+  const day = Math.min(28, Math.max(1, Number(process.env.JARVIS_SSEMBLE_RENEW_DAY) || 1))
+  const [y, m, d] = localDate(now).split('-').map(Number)
+  let start = new Date(Date.UTC(y, m - 1, day))
+  if (d < day) start = new Date(Date.UTC(y, m - 2, day))
+  const next = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, day))
+  const from = start.toISOString().slice(0, 10)
+  const used = (load().credits ?? [])
+    .filter((c) => c.date >= from)
+    .reduce((n, c) => n + (Number(c.credits) || 0), 0)
+  const daysLeft = Math.max(1, Math.round((next - new Date(Date.UTC(y, m - 1, d))) / 86_400_000))
+  return { total, used, left: Math.max(0, total - used), renews: next.toISOString().slice(0, 10), daysLeft }
+}
+
 /** The joined, still-active campaigns, one line each, for the daily scout. */
 export function joinedCampaigns() {
   return (load().campaigns ?? [])
     .filter((c) => c.status !== 'ended')
     .map((c) => `- ${c.name}${c.platform ? ` (${c.platform})` : ''}${c.ends ? `, ends ${c.ends}` : ''}${c.url ? `, ${c.url}` : ''}`)
     .join('\n')
+}
+
+/** Saved page addresses, one per line, for unattended runs. */
+export function pageList() {
+  const pages = load().pages ?? {}
+  return Object.entries(pages).map(([n, p]) => `${n}: ${p.url}`).join('\n')
 }
 
 export function lastReport(kind) {
@@ -317,6 +343,28 @@ export function listTools(changed = () => {}) {
     // Campaign rules and the caption check: bridge/campaigns.mjs.
     ...campaignTools({ load, save }),
 
+    tool(
+      'ssemble_credits',
+      "His Ssemble credit budget. action \"status\": credits used and left this billing period, the renewal date, and a fair budget for today. action \"use\": record credits he just spent (only when he says he ran sources through Ssemble). Give the sources agent today's budget in its task.",
+      {
+        action: z.enum(['status', 'use']).catch('status'),
+        credits: z.number().optional().describe('For "use": how many credits he spent.'),
+        note: z.string().optional().describe('For "use": what he fed it, briefly.'),
+      },
+      async (args) => {
+        if (args.action === 'use') {
+          const n = Number(args.credits)
+          if (!Number.isFinite(n) || n <= 0 || n > 50) return ok('Not recorded — give the number of credits used (1–50).')
+          const state = load()
+          state.credits = [...(state.credits ?? []), { date: localDate(), credits: n, note: String(args.note ?? '').slice(0, 120) }]
+          save(state)
+          changed()
+        }
+        const c = creditStatus()
+        const today = Math.max(1, Math.round(c.left / Math.max(1, c.daysLeft) * 2)) // two clipping-sized days' share
+        return ok(`${c.used} of ${c.total} credits used, ${c.left} left; renews ${c.renews} (${c.daysLeft} days). Fair budget for a clipping day now: about ${Math.min(c.left, today)}.`)
+      },
+    ),
     tool(
       'page_remember',
       "Save the exact address of a page you reached and read successfully in his Chrome — his TikTok Studio content list, his Ssemble projects, a dashboard — under a short name, so next time you open it directly in one step. Only addresses you actually reached, copied exactly.",

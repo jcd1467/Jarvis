@@ -110,9 +110,10 @@ while it runs, adding, updating and removing shift items — never yours.
 ### The clipping team
 
 JARVIS is chief of staff to five sub-agents (`bridge/team.mjs`): **scout**
-(paid clipping campaigns), **trends** (what is getting views), **coach** (clip
-plans and CapCut steps), **copywriter** (titles, captions, hashtags, posting
-times) and **analyst** (real numbers and the Clip Tracker). Say "put the team on
+(which campaigns to be in), **sources** (what to feed Ssemble, with links and
+credit costs), **editor** (post or bin each Ssemble clip; what worked after
+posting), **publisher** (captions and the posting queue for TikTok and YouTube
+Shorts) and **analyst** (the money, the Sunday weekly review, Ssemble value). Say "put the team on
 it" or ask for clipping work that needs research. None of them can post, edit
 video, touch mail or the calendar, or draw on screen; only the analyst may
 update Asana. `JARVIS_DAILY_SCOUT=1` runs the scout once a day by itself and

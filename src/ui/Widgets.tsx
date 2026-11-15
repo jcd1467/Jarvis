@@ -48,6 +48,7 @@ type WidgetData = {
   verse?: { ref: string; text: string } | null
   todos?: Todo[]
   clips?: Clips | null
+  ssemble?: { total: number; used: number; left: number; renews: string; cost: number }
 }
 type Todo = { id: string; text: string; done: boolean; overdue: boolean; date: string; synced?: string | null }
 type Clips = {
@@ -330,7 +331,7 @@ function TodoList({ todos }: { todos: Todo[] }) {
   )
 }
 
-function ClipsWidget({ c }: { c: Clips | null }) {
+function ClipsWidget({ c, s }: { c: Clips | null; s?: WidgetData['ssemble'] }) {
   return (
     <div className="w-block w-clips">
       <div className="w-title">
@@ -360,6 +361,15 @@ function ClipsWidget({ c }: { c: Clips | null }) {
               <div className="w-dim">CLIPS</div>
             </div>
           </div>
+          {s && (
+            <div className="w-clips-best">
+              <span className="w-dim">SSEMBLE</span> {s.left}/{s.total} credits left
+              <span className="w-dim">
+                {' · '}
+                {c.earnings != null ? `$${Math.min(c.earnings, s.cost).toFixed(2)} of $${s.cost} back` : `$${s.cost} to earn back`}
+              </span>
+            </div>
+          )}
           {c.best && (
             <div className="w-clips-best">
               <span className="w-dim">BEST</span> {c.best}
@@ -404,7 +414,7 @@ export function Widgets() {
         ) : (
           data?.markets && <Markets m={data.markets} />
         )}
-        {data && <ClipsWidget c={data.clips ?? null} />}
+        {data && <ClipsWidget c={data.clips ?? null} s={data.ssemble} />}
       </div>
       <div className="w-col w-col-bl">
         <NextUp now={now} agenda={agenda} countdowns={data?.countdowns ?? []} />

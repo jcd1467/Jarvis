@@ -58,3 +58,16 @@ test('pages are remembered and looked up', async () => {
   assert.match((await t.page_remember({ name: 'bad', url: 'javascript:alert(1)' }, {})).content[0].text, /Not saved/)
   assert.match((await t.page_lookup({ name: 'tiktok' }, {})).content[0].text, /tiktokstudio/)
 })
+
+test('ssemble credits are counted per billing period', async () => {
+  process.env.JARVIS_SSEMBLE_CREDITS = '70'
+  process.env.JARVIS_SSEMBLE_RENEW_DAY = '1'
+  const { creditStatus } = await import('../bridge/lists.mjs')
+  const t = Object.fromEntries(listTools().map((x) => [x.name, x.handler]))
+  const before = creditStatus().used
+  assert.match((await t.ssemble_credits({ action: 'use', credits: 4, note: 'Kai stream' }, {})).content[0].text, /left/)
+  assert.equal(creditStatus().used, before + 4)
+  assert.equal(creditStatus().left, 70 - before - 4)
+  assert.match((await t.ssemble_credits({ action: 'use', credits: 0 }, {})).content[0].text, /Not recorded/)
+  assert.match(creditStatus().renews, /^\d{4}-\d{2}-01$/)
+})

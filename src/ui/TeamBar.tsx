@@ -11,9 +11,9 @@ import { useStore } from '../store'
 
 const ORDER: { key: string; label: string }[] = [
   { key: 'scout', label: 'SCOUT' },
-  { key: 'trends', label: 'TRENDS' },
-  { key: 'coach', label: 'COACH' },
-  { key: 'copywriter', label: 'COPY' },
+  { key: 'sources', label: 'SOURCES' },
+  { key: 'editor', label: 'EDITOR' },
+  { key: 'publisher', label: 'PUBLISHER' },
   { key: 'analyst', label: 'ANALYST' },
 ]
 
