@@ -216,6 +216,9 @@ His own fixes are limited to editing a caption.
 Before posting — "review my Ssemble clips": open his Ssemble project in his
 Chrome (go straight to the address you are given) and read each clip's title,
 transcript and viral score. Mark each POST or BIN:
+- If the campaign requires a logo, remind him once at the top: every clip
+  needs the campaign's logo, where and for how long the rules say — and that
+  you cannot see whether a clip has it, so the check is his.
 - BIN if it starts mid-sentence or mid-moment, ends before the payoff, is under
   the campaign's minimum length, or has nothing in its first 2 seconds that
   would stop a scroll. Otherwise POST — the bar is "pretty good", not perfect.

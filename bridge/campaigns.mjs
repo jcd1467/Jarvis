@@ -91,6 +91,11 @@ export function ssembleSettings(c) {
   if (c.outsideVisuals === false) out.push('B-roll: OFF. Game Video: OFF. (No outside visuals allowed.)')
   if (c.audioChanges === false) out.push('Sound effects and music: OFF. (Audio must not be changed.)')
   out.push(c.captionsOnVideo === false ? 'On-video captions: OFF.' : 'On-video captions: on is fine.')
+  if (c.logoRequired) {
+    out.push(
+      `Logo REQUIRED on every clip${c.logoRules ? ` — ${c.logoRules}` : ''}. Use the campaign's own logo file from its assets; in Ssemble's editor: Upload → the logo → click it to add → size and place it.`,
+    )
+  }
   return out
 }
 
@@ -119,6 +124,7 @@ function describe(c) {
     `AI tools: ${c.aiTools ?? 'unknown'}`,
     c.outsideVisuals === false ? 'No outside visuals.' : null,
     c.audioChanges === false ? 'Do not change the audio.' : null,
+    c.logoRequired ? `LOGO REQUIRED${c.logoRules ? `: ${c.logoRules}` : ''}` : null,
     ...(c.rules ?? []).map((r) => `- ${r}`),
     `Ssemble: ${ssembleSettings(c).join(' ')}`,
     c.url ? `Page: ${c.url}` : null,
@@ -170,6 +176,11 @@ export function campaignTools({ load, save }) {
         outsideVisuals: z.boolean().optional().describe('False when only the provided footage may be used.'),
         audioChanges: z.boolean().optional().describe('False when the audio must not be changed.'),
         captionsOnVideo: z.boolean().optional(),
+        logoRequired: z.boolean().optional().describe('True when every clip must show a logo.'),
+        logoRules: z
+          .string()
+          .optional()
+          .describe('Exactly what the rules say about it: which logo (and where to get the file), position, size, how long it must show.'),
         rules: z.array(z.string()).optional().describe('Every other rule, one short line each.'),
       },
       async (args) => {

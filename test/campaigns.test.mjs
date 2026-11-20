@@ -59,3 +59,9 @@ test('a campaign that requires a platform he does not use is flagged', async () 
   assert.equal(platformProblems({ postPlatforms: ['TikTok', 'Instagram'] }, ['TikTok']).length, 0)
   assert.match(await call('campaign_save', { name: 'Stream House LA', requiredPlatforms: ['Instagram', 'TikTok'] }), /WARNING/)
 })
+
+test('a required logo shows in the rules and the Ssemble settings', async () => {
+  const c = { name: 'GTA test', logoRequired: true, logoRules: 'top-right, whole clip' }
+  assert.match(ssembleSettings(c).join(' '), /Logo REQUIRED on every clip — top-right, whole clip/)
+  assert.match(await call('campaign_save', c), /LOGO REQUIRED: top-right, whole clip/)
+})
